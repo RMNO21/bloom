@@ -1751,7 +1751,10 @@ const Dock = memo(function Dock() {
 								<motion.div
 									layout
 									className="dock-icon-wrapper"
-									onContextMenu={(e) => e.preventDefault()}
+									onContextMenu={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+									}}
 									onPointerDown={(e) => e.stopPropagation()}
 									onMouseDown={(e) => e.stopPropagation()}
 									onClick={(e) => {
@@ -1800,6 +1803,10 @@ const Dock = memo(function Dock() {
 								<motion.div
 									layout
 									className="dock-icon-wrapper"
+									onContextMenu={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+									}}
 									onPointerDown={(e) => e.stopPropagation()}
 									onMouseDown={(e) => e.stopPropagation()}
 									onClick={(e) => {
@@ -1928,45 +1935,7 @@ const Dock = memo(function Dock() {
 					}}
 					onClick={(e) => e.stopPropagation()}
 				>
-					{!contextMenu.extra &&
-						!contextMenu.taskView &&
-						(!contextMenu.app || contextMenu.app.path === "start") && (
-						<div
-							style={{
-								maxHeight: Math.max(64, window.innerHeight / scale - 200),
-								overflowY: "auto"
-							}}
-						>
-							{(contextMenu.app
-								? [
-										["installed-apps", "Installed Apps"],
-										["power-options", "Power Options"],
-										["device-manager", "Device Manager"],
-										["network-connections", "Network Connections"],
-										["disk-management", "Disk Management"],
-										["computer-management", "Computer Management"],
-										["task-manager", "Task Manager"],
-										["settings", "Settings"]
-									]
-								: [
-										["task-manager", "Task Manager"],
-										["taskbar-settings", "Taskbar Settings"]
-									]
-							).map(([action, label]) => (
-								<div
-									key={action}
-									className="menu-item"
-									onClick={() => {
-										closeMenu();
-										invoke("open_system_action", { action }).catch(showActionError);
-									}}
-								>
-									{label}
-								</div>
-							))}
-							<div className="menu-divider" />
-						</div>
-					)}
+					{/* Case 1: Drive / Removable / Custom Folder Extra */}
 					{contextMenu.extra ? (
 						<>
 							<div
@@ -2008,6 +1977,7 @@ const Dock = memo(function Dock() {
 							)}
 						</>
 					) : contextMenu.taskView ? (
+						/* Case 2: Task View icon */
 						<>
 							<div
 								className="menu-item"
@@ -2023,49 +1993,386 @@ const Dock = memo(function Dock() {
 								Hide Task View
 							</div>
 						</>
-					) : contextMenu.app ? (
-						<>
-							<div className="menu-item" onClick={() => togglePin(contextMenu.app!)}>
-								{contextMenu.app.is_pinned ? "Unpin from Dock" : "Pin to Dock"}
+					) : contextMenu.app && contextMenu.app.path === "start" ? (
+						/* Case 3: Start Button / Windows Icon (Win+X Quick Link Menu) */
+						<div
+							style={{
+								maxHeight: Math.max(64, window.innerHeight / scale - 140),
+								overflowY: "auto"
+							}}
+						>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "terminal" }).catch(showActionError);
+								}}
+							>
+								Terminal
 							</div>
-							{contextMenu.app.is_pinned && contextMenu.app.path !== "start" && (
-								<>
-									<div className="menu-divider" />
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "terminal-admin" }).catch(showActionError);
+								}}
+							>
+								Terminal (Admin)
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "powershell" }).catch(showActionError);
+								}}
+							>
+								PowerShell
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "powershell-admin" }).catch(showActionError);
+								}}
+							>
+								PowerShell (Admin)
+							</div>
+							<div className="menu-divider" />
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "task-manager" }).catch(showActionError);
+								}}
+							>
+								Task Manager
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "settings" }).catch(showActionError);
+								}}
+							>
+								Settings
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "file-explorer" }).catch(showActionError);
+								}}
+							>
+								File Explorer
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "run" }).catch(showActionError);
+								}}
+							>
+								Run
+							</div>
+							<div className="menu-divider" />
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "device-manager" }).catch(showActionError);
+								}}
+							>
+								Device Manager
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "disk-management" }).catch(showActionError);
+								}}
+							>
+								Disk Management
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "computer-management" }).catch(showActionError);
+								}}
+							>
+								Computer Management
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "network-connections" }).catch(showActionError);
+								}}
+							>
+								Network Connections
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "installed-apps" }).catch(showActionError);
+								}}
+							>
+								Installed Apps
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "power-options" }).catch(showActionError);
+								}}
+							>
+								Power Options
+							</div>
+							<div className="menu-divider" />
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "desktop" }).catch(showActionError);
+								}}
+							>
+								Desktop
+							</div>
+							<div
+								className="menu-item has-submenu"
+								onMouseEnter={() => setActiveSubmenu("power")}
+								onMouseLeave={() => setActiveSubmenu(null)}
+							>
+								Shut down or sign out
+								<span className="submenu-arrow">▶</span>
+								<div
+									className={`submenu ${contextMenu.x > window.innerWidth - 240 ? "open-left" : ""}`}
+									style={{ display: activeSubmenu === "power" ? "flex" : "none" }}
+								>
 									<div
 										className="menu-item"
 										onClick={() => {
-											const isHost = isBrowserHost(contextMenu.app!.path);
-											const ck = isHost
-												? `${contextMenu.app!.path}:${contextMenu.app!.name.toLowerCase()}`
-												: contextMenu.app!.path;
-											iconPickerTargetRef.current = ck;
 											closeMenu();
-											setTimeout(() => {
-												document.getElementById("icon-file-input")?.click();
-											}, 50);
+											invoke("open_system_action", { action: "sign-out" }).catch(showActionError);
 										}}
 									>
-										Change Icon...
+										Sign out
 									</div>
-									{(() => {
-										const isHost = isBrowserHost(contextMenu.app!.path);
-										const ck = isHost
-											? `${contextMenu.app!.path}:${contextMenu.app!.name.toLowerCase()}`
-											: contextMenu.app!.path;
-										return customIcons[ck] ? (
+									<div
+										className="menu-item"
+										onClick={() => {
+											closeMenu();
+											invoke("open_system_action", { action: "sleep" }).catch(showActionError);
+										}}
+									>
+										Sleep
+									</div>
+									<div
+										className="menu-item"
+										onClick={() => {
+											closeMenu();
+											invoke("open_system_action", { action: "restart" }).catch(showActionError);
+										}}
+									>
+										Restart
+									</div>
+									<div
+										className="menu-item quit"
+										onClick={() => {
+											closeMenu();
+											invoke("open_system_action", { action: "shutdown" }).catch(showActionError);
+										}}
+									>
+										Shut down
+									</div>
+								</div>
+							</div>
+						</div>
+					) : contextMenu.app ? (
+						/* Case 4: Application Context Menu (Windows style with Bloom theme) */
+						(() => {
+							const app = contextMenu.app!;
+							const icon =
+								customIcons[app.path] ||
+								iconsRef.current[app.path] ||
+								app.icon;
+							const isRunning = app.is_running && !app.is_background;
+							const allHwnds =
+								app.all_hwnds?.filter(([h]) => h) ??
+								(app.hwnd ? ([[app.hwnd, app.name]] as [number, string][]) : []);
+							const hasMultipleWindows = allHwnds.length > 1;
+
+							return (
+								<>
+									{/* App Header (Title & Icon) */}
+									<div className="dock-menu-header">
+										{icon ? (
+											<img src={icon} alt={app.name} className="dock-menu-header-icon" draggable={false} />
+										) : (
+											<div className="dock-menu-header-fallback">{(app.name || "A")[0]}</div>
+										)}
+										<span className="dock-menu-header-title">{app.name}</span>
+									</div>
+									<div className="menu-divider" />
+
+									{/* List of open windows if multiple windows */}
+									{hasMultipleWindows && (
+										<>
+											{allHwnds.map(([h, title]) => (
+												<div
+													key={h}
+													className="menu-item window-title-item"
+													onClick={() => {
+														closeMenu();
+														invoke("focus_window", { hwnd: h }).catch(showActionError);
+													}}
+												>
+													<span className="window-title-text">{title || app.name}</span>
+												</div>
+											))}
+											<div className="menu-divider" />
+										</>
+									)}
+
+									{/* New Window / Open New Instance */}
+									<div
+										className="menu-item"
+										onClick={() => {
+											closeMenu();
+											handleNewInstance(app);
+										}}
+									>
+										New window
+									</div>
+
+									{/* Run as Administrator */}
+									<div
+										className="menu-item"
+										onClick={() => {
+											closeMenu();
+											invoke("run_as_admin", { path: app.path }).catch(showActionError);
+										}}
+									>
+										Run as administrator
+									</div>
+
+									{/* Pin to taskbar / Unpin from taskbar */}
+									<div
+										className="menu-item"
+										onClick={() => {
+											togglePin(app);
+											closeMenu();
+										}}
+									>
+										{app.is_pinned ? "Unpin from taskbar" : "Pin to taskbar"}
+									</div>
+
+									{/* Customize Icon (if pinned) */}
+									{app.is_pinned && (
+										<>
 											<div
 												className="menu-item"
 												onClick={() => {
-													handleRemoveCustomIcon(contextMenu.app!);
+													const isHost = isBrowserHost(app.path);
+													const ck = isHost
+														? `${app.path}:${app.name.toLowerCase()}`
+														: app.path;
+													iconPickerTargetRef.current = ck;
+													closeMenu();
+													setTimeout(() => {
+														document.getElementById("icon-file-input")?.click();
+													}, 50);
+												}}
+											>
+												Change icon...
+											</div>
+											{(() => {
+												const isHost = isBrowserHost(app.path);
+												const ck = isHost
+													? `${app.path}:${app.name.toLowerCase()}`
+													: app.path;
+												return customIcons[ck] ? (
+													<div
+														className="menu-item"
+														onClick={() => {
+															handleRemoveCustomIcon(app);
+															closeMenu();
+														}}
+													>
+														Reset icon
+													</div>
+												) : null;
+											})()}
+										</>
+									)}
+
+									{/* App Tray Menus (if any) */}
+									{app.tray_ids && app.tray_ids.length > 0 && (
+										<>
+											<div className="menu-divider" />
+											{app.tray_ids.map((id, index, ids) => (
+												<div key={id} className="menu-item" onClick={() => void openTrayMenu(id)}>
+													{ids.length > 1 ? `Tray menu ${index + 1}` : "App tray menu"}
+												</div>
+											))}
+										</>
+									)}
+
+									{/* Running App Actions: Close Window & Kill App */}
+									{isRunning && (
+										<>
+											<div className="menu-divider" />
+											<div
+												className="menu-item"
+												onClick={async () => {
+													const hwnds = allHwnds.map(([h]) => h);
+													await Promise.all(hwnds.map((hwnd) => invoke("close_window", { hwnd })));
 													closeMenu();
 												}}
 											>
-												Reset Icon
+												{hasMultipleWindows ? "Close all windows" : "Close window"}
 											</div>
-										) : null;
-									})()}
+											<div
+												className="menu-item quit"
+												style={{ color: "#ff4d4f" }}
+												onClick={async () => {
+													const hwnds = allHwnds.map(([h]) => h);
+													await invoke("kill_app_process", {
+														hwnds,
+														processName: app.executable || null
+													}).catch(showActionError);
+													closeMenu();
+												}}
+											>
+												End task (Kill app)
+											</div>
+										</>
+									)}
 								</>
-							)}
+							);
+						})()
+					) : (
+						/* Case 5: Empty Dock Background Context Menu */
+						<>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "task-manager" }).catch(showActionError);
+								}}
+							>
+								Task Manager
+							</div>
+							<div
+								className="menu-item"
+								onClick={() => {
+									closeMenu();
+									invoke("open_system_action", { action: "taskbar-settings" }).catch(showActionError);
+								}}
+							>
+								Taskbar Settings
+							</div>
 							<div className="menu-divider" />
 							<div
 								className="menu-item"
@@ -2083,106 +2390,10 @@ const Dock = memo(function Dock() {
 							>
 								Bloom Options
 								<span className="submenu-arrow">▶</span>
-								<div className="submenu">
-									<div
-										className="menu-item"
-										onClick={() => {
-											invoke("open_settings_window");
-											closeMenu();
-										}}
-									>
-										Open Settings
-									</div>
-									<div className="menu-item" onClick={() => invoke("restart_bloom")}>
-										Restart Bloom
-									</div>
-									<div
-										className="menu-item"
-										onClick={() => {
-											handleClearIconCache();
-											closeMenu();
-										}}
-									>
-										Clear Icon Cache
-									</div>
-									<div className="menu-divider" />
-									<div className="menu-item quit" onClick={() => invoke("quit_bloom")}>
-										Quit Bloom
-									</div>
-								</div>
-							</div>
-							{(() => {
-								// App actions sit together just above Close, like the taskbar's
-								// jump list: the app's tray menus, then a new instance.
-								const app = contextMenu.app!;
-								const canOpenNew = app.is_running && app.path !== "start";
-								if (!app.tray_ids?.length && !canOpenNew) return null;
-								return (
-									<>
-										<div className="menu-divider" />
-										{app.tray_ids?.map((id, index, ids) => (
-											<div key={id} className="menu-item" onClick={() => void openTrayMenu(id)}>
-												{ids.length > 1 ? `Tray menu ${index + 1}` : "App tray menu"}
-											</div>
-										))}
-										{canOpenNew && (
-											<div
-												className="menu-item"
-												onClick={() => {
-													handleNewInstance(app);
-													closeMenu();
-												}}
-											>
-												Open New Instance
-											</div>
-										)}
-									</>
-								);
-							})()}
-							{contextMenu.app.is_running && !contextMenu.app.is_background && (
-								<>
-									{contextMenu.app.path === "start" && !contextMenu.app.tray_ids?.length && (
-										<div className="menu-divider" />
-									)}
-									<div
-										className="menu-item quit"
-										onClick={async () => {
-											// Close every window of the item, like the taskbar's
-											// "Close all windows", not just the first one.
-											const app = contextMenu.app;
-											const hwnds =
-												app?.all_hwnds?.map(([hwnd]) => hwnd) ?? (app?.hwnd ? [app.hwnd] : []);
-											await Promise.all(hwnds.map((hwnd) => invoke("close_window", { hwnd })));
-											closeMenu();
-										}}
-									>
-										Close{" "}
-										{contextMenu.app.all_hwnds && contextMenu.app.all_hwnds.length > 1
-											? "all windows"
-											: "window"}
-									</div>
-								</>
-							)}
-						</>
-					) : (
-						<>
-							<div
-								className="menu-item"
-								onClick={() => {
-									setShowAddPopup(true);
-									closeMenu();
-								}}
-							>
-								Add App to Dock...
-							</div>
-							<div
-								className="menu-item has-submenu"
-								onMouseEnter={() => setActiveSubmenu("bloom")}
-								onMouseLeave={() => setActiveSubmenu(null)}
-							>
-								Bloom Options
-								<span className="submenu-arrow">▶</span>
-								<div className="submenu">
+								<div
+									className={`submenu ${contextMenu.x > window.innerWidth - 240 ? "open-left" : ""}`}
+									style={{ display: activeSubmenu === "bloom" ? "flex" : "none" }}
+								>
 									<div
 										className="menu-item"
 										onClick={() => {

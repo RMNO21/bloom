@@ -136,6 +136,8 @@ fn main() {
             sync_appbar,
             open_app,
             launch_new_instance,
+            run_as_admin,
+            kill_app_process,
             update_dock_rect,
             update_notch_rect,
             window_region::set_window_region,

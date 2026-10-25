@@ -724,12 +724,12 @@ fn is_pwa_shortcut_for(app: &AppInfo, name: &str, host_exe: &str) -> bool {
             .is_some_and(|exe| exe.eq_ignore_ascii_case(host_exe))
 }
 
-/// Opens a file path, shortcut, or shell application id through the shell.
-fn launch_path(path: &str) {
+/// Opens a file path, shortcut, or shell application id through the shell with a specific verb ("open", "runas", etc.).
+fn launch_path_with_verb(path: &str, verb: &str) {
     unsafe {
         use windows::Win32::UI::Shell::ShellExecuteW;
         use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
-        let wide_open: Vec<u16> = "open".encode_utf16().chain(std::iter::once(0)).collect();
+        let wide_verb: Vec<u16> = verb.encode_utf16().chain(std::iter::once(0)).collect();
 
         // Shortcuts and shell app ids must be launched through the shell itself so
         // that arguments (Chrome/Edge PWAs) and package identities (Store apps) survive.
@@ -746,14 +746,14 @@ fn launch_path(path: &str) {
             let wide_target: Vec<u16> = target.encode_utf16().chain(std::iter::once(0)).collect();
             let res = ShellExecuteW(
                 None,
-                windows::core::PCWSTR(wide_open.as_ptr()),
+                windows::core::PCWSTR(wide_verb.as_ptr()),
                 windows::core::PCWSTR(wide_target.as_ptr()),
                 None,
                 None,
                 SW_SHOWNORMAL,
             );
             if res.0 as usize <= 32 {
-                eprintln!("Failed to open {}: error code {}", target, res.0 as usize);
+                eprintln!("Failed to {} {}: error code {}", verb, target, res.0 as usize);
             }
             return;
         }
@@ -763,7 +763,7 @@ fn launch_path(path: &str) {
 
             let res = ShellExecuteW(
                 None,
-                windows::core::PCWSTR(wide_open.as_ptr()),
+                windows::core::PCWSTR(wide_verb.as_ptr()),
                 windows::core::PCWSTR(wide_cmd.as_ptr()),
                 None,
                 None,
@@ -772,8 +772,8 @@ fn launch_path(path: &str) {
 
             if res.0 as usize <= 32 {
                 eprintln!(
-                    "Failed to open UWP app {}: error code {}",
-                    uwp_cmd, res.0 as usize
+                    "Failed to {} UWP app {}: error code {}",
+                    verb, uwp_cmd, res.0 as usize
                 );
             }
             return;
@@ -801,11 +801,10 @@ fn launch_path(path: &str) {
             .encode_utf16()
             .chain(std::iter::once(0))
             .collect();
-        let wide_open: Vec<u16> = "open".encode_utf16().chain(std::iter::once(0)).collect();
 
         let res = ShellExecuteW(
             None,
-            windows::core::PCWSTR(wide_open.as_ptr()),
+            windows::core::PCWSTR(wide_verb.as_ptr()),
             windows::core::PCWSTR(wide_path.as_ptr()),
             None,
             None,
@@ -814,11 +813,101 @@ fn launch_path(path: &str) {
 
         if res.0 as usize <= 32 {
             eprintln!(
-                "Failed to open app {}: error code {}",
-                final_path, res.0 as usize
+                "Failed to {} app {}: error code {}",
+                verb, final_path, res.0 as usize
             );
         }
     }
+}
+
+fn launch_path(path: &str) {
+    launch_path_with_verb(path, "open");
+}
+
+#[tauri::command]
+pub async fn run_as_admin(path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        launch_path_with_verb(&path, "runas");
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn kill_app_process(hwnds: Vec<isize>, process_name: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || unsafe {
+        use std::collections::HashSet;
+        use windows::Win32::Foundation::{CloseHandle, HWND};
+        use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+        use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+
+        let mut pids_to_kill = HashSet::new();
+
+        for h in hwnds {
+            let hwnd = HWND(h as *mut _);
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            if pid > 0 {
+                pids_to_kill.insert(pid);
+            }
+        }
+
+        // If process_name is provided, also find by snapshot if pids_to_kill is empty
+        if let Some(ref name) = process_name {
+            let trimmed = name.trim();
+            if !trimmed.is_empty() {
+                use windows::Win32::System::Diagnostics::ToolHelp::{
+                    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+                    TH32CS_SNAPPROCESS,
+                };
+                let target_name = std::path::Path::new(trimmed)
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or(trimmed)
+                    .to_lowercase();
+
+                if let Ok(snap) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+                    let mut entry = PROCESSENTRY32W {
+                        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+                        ..Default::default()
+                    };
+                    if Process32FirstW(snap, &mut entry).is_ok() {
+                        loop {
+                            let exe_len = entry
+                                .szExeFile
+                                .iter()
+                                .position(|&c| c == 0)
+                                .unwrap_or(entry.szExeFile.len());
+                            let exe_str = String::from_utf16_lossy(&entry.szExeFile[..exe_len]).to_lowercase();
+                            if exe_str == target_name {
+                                pids_to_kill.insert(entry.th32ProcessID);
+                            }
+                            if Process32NextW(snap, &mut entry).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    let _ = CloseHandle(snap);
+                }
+            }
+        }
+
+        // Safety: Never terminate ourselves or system PID 0
+        let my_pid = std::process::id();
+        pids_to_kill.remove(&0);
+        pids_to_kill.remove(&my_pid);
+
+        for pid in pids_to_kill {
+            if let Ok(handle) = OpenProcess(PROCESS_TERMINATE, false, pid) {
+                let _ = TerminateProcess(handle, 1);
+                let _ = CloseHandle(handle);
+            }
+        }
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -4381,6 +4470,17 @@ pub enum SystemAction {
     PowerOptions,
     NetworkConnections,
     TaskView,
+    Terminal,
+    TerminalAdmin,
+    Powershell,
+    PowershellAdmin,
+    FileExplorer,
+    Run,
+    Desktop,
+    Shutdown,
+    Restart,
+    Sleep,
+    SignOut,
 }
 
 #[tauri::command]
@@ -4395,44 +4495,101 @@ pub async fn open_system_action(action: SystemAction) -> Result<(), String> {
             return Err("Windows system directory is unavailable.".into());
         }
         let system = String::from_utf16_lossy(&directory[..length as usize]);
-        let (file, args) = match action {
-            SystemAction::TaskManager => (format!("{system}\\Taskmgr.exe"), String::new()),
+        let (file, args, verb) = match action {
+            SystemAction::TaskManager => (format!("{system}\\Taskmgr.exe"), String::new(), "open"),
             SystemAction::DiskManagement => (
                 format!("{system}\\mmc.exe"),
                 format!("\"{system}\\diskmgmt.msc\""),
+                "open",
             ),
             SystemAction::DeviceManager => (
                 format!("{system}\\mmc.exe"),
                 format!("\"{system}\\devmgmt.msc\""),
+                "open",
             ),
             SystemAction::ComputerManagement => (
                 format!("{system}\\mmc.exe"),
                 format!("\"{system}\\compmgmt.msc\""),
+                "open",
             ),
-            SystemAction::Settings => ("ms-settings:".into(), String::new()),
-            SystemAction::TaskbarSettings => ("ms-settings:taskbar".into(), String::new()),
-            SystemAction::InstalledApps => ("ms-settings:appsfeatures".into(), String::new()),
-            SystemAction::PowerOptions => ("ms-settings:powersleep".into(), String::new()),
-            SystemAction::NetworkConnections => ("ms-settings:network".into(), String::new()),
+            SystemAction::Settings => ("ms-settings:".into(), String::new(), "open"),
+            SystemAction::TaskbarSettings => ("ms-settings:taskbar".into(), String::new(), "open"),
+            SystemAction::InstalledApps => ("ms-settings:appsfeatures".into(), String::new(), "open"),
+            SystemAction::PowerOptions => ("ms-settings:powersleep".into(), String::new(), "open"),
+            SystemAction::NetworkConnections => ("ms-settings:network".into(), String::new(), "open"),
             // Task View's shell folder opens Task View like the taskbar's
             // button, without sending Win+Tab, which a held Ctrl or Shift
             // would turn into a different shortcut.
             SystemAction::TaskView => (
                 "explorer.exe".into(),
                 "shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}".into(),
+                "open",
             ),
+            SystemAction::Terminal => ("wt.exe".into(), String::new(), "open"),
+            SystemAction::TerminalAdmin => ("wt.exe".into(), String::new(), "runas"),
+            SystemAction::Powershell => (
+                format!("{system}\\WindowsPowerShell\\v1.0\\powershell.exe"),
+                String::new(),
+                "open",
+            ),
+            SystemAction::PowershellAdmin => (
+                format!("{system}\\WindowsPowerShell\\v1.0\\powershell.exe"),
+                String::new(),
+                "runas",
+            ),
+            SystemAction::FileExplorer => ("explorer.exe".into(), String::new(), "open"),
+            SystemAction::Run => (
+                "explorer.exe".into(),
+                "shell:::{2559a1f3-21d7-11d4-bdaf-00c04f60b9f0}".into(),
+                "open",
+            ),
+            SystemAction::Desktop => (
+                "explorer.exe".into(),
+                "shell:::{3080F90D-D7AD-11D9-BD98-0000947B0257}".into(),
+                "open",
+            ),
+            SystemAction::Shutdown => (format!("{system}\\shutdown.exe"), "/s /t 0".into(), "open"),
+            SystemAction::Restart => (format!("{system}\\shutdown.exe"), "/r /t 0".into(), "open"),
+            SystemAction::Sleep => (
+                format!("{system}\\rundll32.exe"),
+                "powrprof.dll,SetSuspendState 0,1,0".into(),
+                "open",
+            ),
+            SystemAction::SignOut => (format!("{system}\\shutdown.exe"), "/l".into(), "open"),
         };
-        let file: Vec<u16> = file.encode_utf16().chain(Some(0)).collect();
-        let args: Vec<u16> = args.encode_utf16().chain(Some(0)).collect();
+        let file_w: Vec<u16> = file.encode_utf16().chain(Some(0)).collect();
+        let args_w: Vec<u16> = args.encode_utf16().chain(Some(0)).collect();
+        let verb_w: Vec<u16> = verb.encode_utf16().chain(Some(0)).collect();
         let result = ShellExecuteW(
             None,
-            windows::core::w!("open"),
-            windows::core::PCWSTR(file.as_ptr()),
-            windows::core::PCWSTR(args.as_ptr()),
+            windows::core::PCWSTR(verb_w.as_ptr()),
+            windows::core::PCWSTR(file_w.as_ptr()),
+            if args.is_empty() {
+                windows::core::PCWSTR::null()
+            } else {
+                windows::core::PCWSTR(args_w.as_ptr())
+            },
             windows::core::PCWSTR::null(),
             SW_SHOWNORMAL,
         );
         if result.0 as usize <= 32 {
+            // If Terminal (wt.exe) failed, fallback to PowerShell
+            if matches!(action, SystemAction::Terminal | SystemAction::TerminalAdmin) {
+                let ps_path = format!("{system}\\WindowsPowerShell\\v1.0\\powershell.exe");
+                let ps_w: Vec<u16> = ps_path.encode_utf16().chain(Some(0)).collect();
+                let ps_res = ShellExecuteW(
+                    None,
+                    windows::core::PCWSTR(verb_w.as_ptr()),
+                    windows::core::PCWSTR(ps_w.as_ptr()),
+                    windows::core::PCWSTR::null(),
+                    windows::core::PCWSTR::null(),
+                    SW_SHOWNORMAL,
+                );
+                if ps_res.0 as usize <= 32 {
+                    return Err("Windows could not open terminal or powershell.".into());
+                }
+                return Ok(());
+            }
             Err("Windows could not open this system tool.".into())
         } else {
             Ok(())
