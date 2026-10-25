@@ -503,6 +503,7 @@ function App() {
 	const [isOpen, setIsOpen] = useState(false);
 	const isOpenRef = useRef(false);
 	isOpenRef.current = isOpen;
+	const hasSwitchedPanelRef = useRef(false);
 	const [isReady, setIsReady] = useState(false);
 	const [scale, setScale] = useState(() =>
 		parseFloat(localStorage.getItem("bloom-scale") || "1.0")
@@ -1512,6 +1513,7 @@ function App() {
 		setIsHovered(false);
 		setIsNotchHovered(false);
 		if (isOpenRef.current) {
+			hasSwitchedPanelRef.current = false;
 			const panel = asNotchPanel(bloomModeRef.current);
 			if (panel && rememberPanelEnabledRef.current) rememberPanelRef.current(panel);
 			setIsOpen(false);
@@ -1827,6 +1829,7 @@ function App() {
 		const index = panels.indexOf(bloomMode as NotchPanel);
 		if (index === -1 || panels.length < 2) return;
 		const nextMode = panels[(index + direction + panels.length) % panels.length];
+		hasSwitchedPanelRef.current = true;
 		setBloomMode(nextMode);
 		if (rememberPanelEnabled) {
 			rememberPanel(nextMode);
@@ -2038,6 +2041,7 @@ function App() {
 	// Expands the notch into a panel, or into an activity's own view.
 	const openNotch = (view: NotchPanel | "music" | "shelf") => {
 		if (bloomMode === "announcement") return;
+		hasSwitchedPanelRef.current = false;
 		setIsOpen(true);
 		setBloomMode(view);
 	};
@@ -2606,10 +2610,21 @@ function App() {
 			resetTimer();
 			return;
 		}
-		// The time is part of the notch: clicking it toggles the notch open/closed
+		// The time is part of the notch: clicking it toggles or switches panels
 		if (!isOpen) {
+			hasSwitchedPanelRef.current = false;
 			openNotch(openingPanel());
+		} else if (!hasSwitchedPanelRef.current) {
+			// First click while open: switch page (if on calendar, go to command-center; if on command-center, go to calendar)
+			hasSwitchedPanelRef.current = true;
+			const targetMode: NotchPanel = bloomMode === "calendar" ? "command-center" : "calendar";
+			setBloomMode(targetMode);
+			if (rememberPanelEnabled) {
+				rememberPanel(targetMode);
+			}
 		} else {
+			// Second click while open: close and collapse
+			hasSwitchedPanelRef.current = false;
 			const currentPanel = asNotchPanel(bloomMode);
 			if (currentPanel && rememberPanelEnabled) {
 				rememberPanel(currentPanel);
@@ -2942,8 +2957,10 @@ function App() {
 					onClick={(e) => {
 						e.stopPropagation();
 						if (!isOpen) {
+							hasSwitchedPanelRef.current = false;
 							openNotch(openingPanel());
 						} else {
+							hasSwitchedPanelRef.current = false;
 							const currentPanel = asNotchPanel(bloomMode);
 							if (currentPanel && rememberPanelEnabled) {
 								rememberPanel(currentPanel);
