@@ -13,6 +13,11 @@ export interface TodoItem {
 
 const STORAGE_KEY = "bloom_todos";
 
+const DEFAULT_TODOS: TodoItem[] = [
+	{ id: "1", text: "Welcome to Bloom To-Do! ✨", completed: false, createdAt: Date.now() },
+	{ id: "2", text: "Click circle to complete a task", completed: true, createdAt: Date.now() - 1000 }
+];
+
 interface TodoListProps {
 	isTimerCollapsed?: boolean;
 	onToggleTimer?: () => void;
@@ -20,28 +25,56 @@ interface TodoListProps {
 }
 
 export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoListProps) {
+	const isLoadedFromDiskRef = useRef(false);
 	const [todos, setTodos] = useState<TodoItem[]>(() => {
 		try {
 			const saved = localStorage.getItem(STORAGE_KEY);
-			if (saved) return JSON.parse(saved);
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed)) return parsed;
+			}
 		} catch (e) {
 			console.error("Failed to load todos:", e);
 		}
-		return [
-			{ id: "1", text: "Welcome to Bloom To-Do! ✨", completed: false, createdAt: Date.now() },
-			{ id: "2", text: "Click circle to complete a task", completed: true, createdAt: Date.now() - 1000 }
-		];
+		return DEFAULT_TODOS;
 	});
 
 	const [inputText, setInputText] = useState("");
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// Persist todos
+	// Load from persistent disk file (%APPDATA%/com.sehaz.bloom/todos.json) on mount
+	useEffect(() => {
+		invoke<TodoItem[] | null>("load_todos")
+			.then((diskTodos) => {
+				isLoadedFromDiskRef.current = true;
+				if (Array.isArray(diskTodos)) {
+					setTodos(diskTodos);
+					try {
+						localStorage.setItem(STORAGE_KEY, JSON.stringify(diskTodos));
+					} catch {}
+				} else {
+					// File does not exist on disk yet (very first run). Save current default to disk.
+					invoke("save_todos", { todos }).catch(() => {});
+				}
+			})
+			.catch((e) => {
+				isLoadedFromDiskRef.current = true;
+				console.error("Failed to load todos from disk:", e);
+			});
+	}, []);
+
+	// Persist todos to both localStorage and disk JSON file whenever updated
 	useEffect(() => {
 		try {
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
 		} catch (e) {
-			console.error("Failed to save todos:", e);
+			console.error("Failed to save todos to localStorage:", e);
+		}
+		// Save to disk once loaded from disk (or if already initialized)
+		if (isLoadedFromDiskRef.current) {
+			invoke("save_todos", { todos }).catch((e) => {
+				console.error("Failed to save todos to disk:", e);
+			});
 		}
 	}, [todos]);
 

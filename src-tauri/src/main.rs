@@ -159,6 +159,8 @@ fn main() {
             get_installed_apps,
             save_pinned_apps,
             load_pinned_apps,
+            save_todos,
+            load_todos,
             clear_icon_cache,
             set_custom_icon,
             remove_custom_icon,

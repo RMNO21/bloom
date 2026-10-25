@@ -2020,6 +2020,35 @@ pub fn save_pinned_apps(app: AppHandle, apps: Vec<AppInfo>) -> Result<(), String
     Ok(())
 }
 
+#[tauri::command]
+pub fn save_todos(app: AppHandle, todos: serde_json::Value) -> Result<(), String> {
+    let path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?
+        .join("todos.json");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_vec_pretty(&todos).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_file(&path, &content)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_todos(app: AppHandle) -> Result<serde_json::Value, String> {
+    let path = match app.path().app_config_dir() {
+        Ok(p) => p.join("todos.json"),
+        Err(_) => return Ok(serde_json::Value::Null),
+    };
+    if !path.exists() {
+        return Ok(serde_json::Value::Null);
+    }
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let todos: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(todos)
+}
+
 /// Apps pinned while running were saved under their executable's name
 /// ("WhatsApp.Root", "localsend_app"). Gives those their Start menu name, once
 /// the installed-apps scan has results: the dock loads its pins again when the
