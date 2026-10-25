@@ -1816,11 +1816,10 @@ const Dock = memo(function Dock() {
 								>
 									<div className="tooltip">Back to Apps</div>
 									<motion.div
-										className="dock-icon"
+										className="dock-icon dock-tray-back-icon"
 										variants={iconVariants}
 										whileHover="hover"
 										whileTap="tap"
-										style={{ background: "rgba(255, 255, 255, 0.15)" }}
 										onPointerDown={(e) => e.stopPropagation()}
 										onMouseDown={(e) => e.stopPropagation()}
 										onClick={(e) => {
@@ -1828,7 +1827,7 @@ const Dock = memo(function Dock() {
 											setShowSystemTray(false);
 										}}
 									>
-										<ChevronLeft size={18} strokeWidth={2.4} />
+										<ChevronLeft size={20} strokeWidth={2.4} />
 									</motion.div>
 								</motion.div>
 
