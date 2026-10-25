@@ -338,8 +338,8 @@ const Dock = memo(function Dock() {
 					rect: {
 						x: Math.round(rect.x) - (hasPreview ? 500 : 0),
 						y: Math.round(rect.y) - (hasPreview ? 320 : 0),
-						width: Math.round(rect.width) + 30 + (hasPreview ? 1000 : 0),
-						height: Math.round(rect.height) + (hasPreview ? 320 : 0)
+						width: Math.round(rect.width) + 80 + (hasPreview ? 1000 : 0),
+						height: Math.round(rect.height) + 20 + (hasPreview ? 320 : 0)
 					}
 				}).catch(() => {});
 			}
@@ -354,7 +354,29 @@ const Dock = memo(function Dock() {
 			window.removeEventListener("resize", updateRect);
 			observer.disconnect();
 		};
-	}, [pinnedApps, activeApps, isHidden, previewData, scale]);
+	}, [pinnedApps, activeApps, isHidden, previewData, scale, showSystemTray, allTrayApps.length, dockExtras.length]);
+
+	useEffect(() => {
+		const update = () => {
+			if (dockRef.current) {
+				const rect = dockRef.current.getBoundingClientRect();
+				invoke("update_dock_rect", {
+					rect: {
+						x: Math.round(rect.x),
+						y: Math.round(rect.y),
+						width: Math.round(rect.width) + 80,
+						height: Math.round(rect.height) + 20
+					}
+				}).catch(() => {});
+			}
+		};
+		const t1 = setTimeout(update, 50);
+		const t2 = setTimeout(update, 200);
+		return () => {
+			clearTimeout(t1);
+			clearTimeout(t2);
+		};
+	}, [showSystemTray]);
 
 	useEffect(() => {
 		const init = async () => {
@@ -1197,7 +1219,12 @@ const Dock = memo(function Dock() {
 				setHoveredApp(null);
 				setPressedApp(null);
 			}}
+			onPointerDown={(e) => {
+				e.stopPropagation();
+				setPressedApp(extra.id);
+			}}
 			onMouseDown={(e) => {
+				e.stopPropagation();
 				if (e.button === 1) e.preventDefault();
 			}}
 			onClick={(e) => {
@@ -1725,6 +1752,8 @@ const Dock = memo(function Dock() {
 									layout
 									className="dock-icon-wrapper"
 									onContextMenu={(e) => e.preventDefault()}
+									onPointerDown={(e) => e.stopPropagation()}
+									onMouseDown={(e) => e.stopPropagation()}
 									onClick={(e) => {
 										e.stopPropagation();
 										setShowSystemTray(true);
@@ -1736,6 +1765,12 @@ const Dock = memo(function Dock() {
 										variants={iconVariants}
 										whileHover="hover"
 										whileTap="tap"
+										onPointerDown={(e) => e.stopPropagation()}
+										onMouseDown={(e) => e.stopPropagation()}
+										onClick={(e) => {
+											e.stopPropagation();
+											setShowSystemTray(true);
+										}}
 									>
 										<ChevronUp size={18} strokeWidth={2.4} />
 									</motion.div>
@@ -1765,6 +1800,8 @@ const Dock = memo(function Dock() {
 								<motion.div
 									layout
 									className="dock-icon-wrapper"
+									onPointerDown={(e) => e.stopPropagation()}
+									onMouseDown={(e) => e.stopPropagation()}
 									onClick={(e) => {
 										e.stopPropagation();
 										setShowSystemTray(false);
@@ -1777,6 +1814,12 @@ const Dock = memo(function Dock() {
 										whileHover="hover"
 										whileTap="tap"
 										style={{ background: "rgba(255, 255, 255, 0.15)" }}
+										onPointerDown={(e) => e.stopPropagation()}
+										onMouseDown={(e) => e.stopPropagation()}
+										onClick={(e) => {
+											e.stopPropagation();
+											setShowSystemTray(false);
+										}}
 									>
 										<ChevronLeft size={18} strokeWidth={2.4} />
 									</motion.div>

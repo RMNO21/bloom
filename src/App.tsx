@@ -2043,8 +2043,8 @@ function App() {
 	// Leave the music view when music is turned off or the player ends its media
 	// session: an open notch falls back to the remembered panel.
 	useEffect(() => {
-		if (bloomMode === "music" && !(settingsMusicModeEnabled && mediaInfo.has_media)) {
-			setBloomMode(isOpen ? openingPanel() : collapsedMode);
+		if (bloomMode === "music" && !isOpen && !(settingsMusicModeEnabled && mediaInfo.has_media)) {
+			setBloomMode(collapsedMode);
 		}
 	}, [settingsMusicModeEnabled, mediaInfo.has_media, bloomMode, isOpen]);
 
@@ -2736,14 +2736,20 @@ function App() {
 		if (bloomMode === "shelf") return 380;
 		if (bloomMode === "command-center" && isOpen) return 350;
 		if (bloomMode === "wifi" || bloomMode === "bluetooth") return 350;
+		if ((bloomMode === "music" || isMusicMode) && isOpen) return mediaLayout === "compact" ? 300 : 340;
+		if (bloomMode === "music" && !isOpen) {
+			let w = 140 - clock24hTrim;
+			if (settingsVisualizerEnabled && isPlaying) w += 30;
+			if (settingsAlbumArtEnabled) w += 30;
+			return w;
+		}
 		if (showMusicOnStatusHover) {
 			return 170 + (settingsVisualizerEnabled ? 30 : 0);
 		}
-		if (!isOpen && isHovered) {
+		if (bloomMode === "status" && !isOpen && isHovered) {
 			const totalWidgets = statusWidgets.left.length + statusWidgets.right.length;
 			return Math.max(Math.min(200 + totalWidgets * 50, 380) - clock24hTrim, statusFitWidth);
 		}
-		if (isMusicMode && isOpen) return mediaLayout === "compact" ? 300 : 340;
 		if ((showPowerPulse || showLowBatteryPulse || showUpdatePulse) && !isHovered) return 200;
 
 		let w = 140 - clock24hTrim;
@@ -2775,7 +2781,7 @@ function App() {
 		if (bloomMode === "command-center") return isOpen ? 310 : 36;
 		if (bloomMode === "wifi" || bloomMode === "bluetooth") return 300;
 		if (bloomMode === "status") return 36;
-		if (isMusicMode && isOpen) {
+		if ((bloomMode === "music" || isMusicMode) && isOpen) {
 			const hasProgressBar = (mediaInfo.duration_ms ?? 0) > 0;
 			let h = mediaLayout === "compact" ? (hasProgressBar ? 132 : 116) : 120;
 			if (mediaLayout === "compact") {
@@ -2966,7 +2972,7 @@ function App() {
 							>
 								{/* Faster Waiting Transition Area */}
 								<AnimatePresence mode="wait">
-									{isOpen && isMusicMode && !isCalendarMode ? (
+									{isOpen && (bloomMode === "music" || isMusicMode) && !isCalendarMode ? (
 										<motion.div
 											key="expanded-music"
 											className="expanded-music-container"
@@ -3409,6 +3415,12 @@ function App() {
 																			animate={{ opacity: 1, scale: 1 }}
 																			exit={{ opacity: 0, y: -20, scale: 0.8, filter: "blur(8px)" }}
 																			transition={{ duration: 0.12 }}
+																			onPointerDown={(e) => e.stopPropagation()}
+																			onMouseDown={(e) => e.stopPropagation()}
+																			onClick={(e) => {
+																				e.stopPropagation();
+																				openNotch("music");
+																			}}
 																		>
 																			{settingsAlbumArtEnabled && albumArtUrl && settingsCompactGlowEnabled && (
 																				<img
@@ -3421,6 +3433,8 @@ function App() {
 																			<button
 																				className={`album-art album-art-activity${!isPlaying ? " paused" : ""}`}
 																				aria-label="Open music"
+																				onPointerDown={(e) => e.stopPropagation()}
+																				onMouseDown={(e) => e.stopPropagation()}
 																				onClick={(e) => {
 																					e.stopPropagation();
 																					openNotch("music");
@@ -4117,6 +4131,8 @@ function App() {
 								opacity: { duration: 0.15 }
 							}}
 							onAnimationComplete={() => reportNotchRect.current()}
+							onPointerDown={(e) => e.stopPropagation()}
+							onMouseDown={(e) => e.stopPropagation()}
 							onClick={(e) => {
 								e.stopPropagation();
 								setIsHovered(true);

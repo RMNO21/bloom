@@ -2607,13 +2607,13 @@ fn update_main_interaction(
     if let Some((win_pos, _)) = main_rect_val {
         if let Ok(region) = NOTCH_RECT.try_lock() {
             if let Some(r) = *region {
-                let pad_x = (20.0 * scale) as i32;
-                let pad_y_bottom = (5.0 * scale) as i32;
+                let pad_x = (40.0 * scale) as i32;
+                let pad_y_bottom = (15.0 * scale) as i32;
                 // Hysteresis keeps the notch interactive a little past its
                 // bounds once grabbed, so removing the edge-forced
                 // interactivity doesn't reintroduce boundary flicker.
                 let hyst = if MH_LAST_MAIN_IGNORE.load(Ordering::Relaxed) == 0 {
-                    (10.0 * scale) as i32
+                    (15.0 * scale) as i32
                 } else {
                     0
                 };
@@ -2840,19 +2840,20 @@ fn update_dock_interaction(
                 if let Some(r) = *region {
                     let scale = dock_win.scale_factor().unwrap_or(1.0);
                     let pad_x = (30.0 * scale) as i32;
-                    let pad_y_top = (24.0 * scale) as i32;
-                    let pad_y_bottom = (5.0 * scale) as i32;
+                    let pad_x_right = (80.0 * scale) as i32;
+                    let pad_y_top = (40.0 * scale) as i32;
+                    let pad_y_bottom = (40.0 * scale) as i32;
                     // Hysteresis keeps the dock interactive a little past
                     // its bounds once grabbed, so removing the edge-forced
                     // interactivity doesn't reintroduce boundary flicker.
                     let hyst = if MH_LAST_DOCK_IGNORE.load(Ordering::Relaxed) == 0 {
-                        (10.0 * scale) as i32
+                        (15.0 * scale) as i32
                     } else {
                         0
                     };
                     let rx = win_pos.x + (r.x as f64 * scale) as i32 - pad_x - hyst;
                     let ry = win_pos.y + (r.y as f64 * scale) as i32 - pad_y_top - hyst;
-                    let rw = (r.width as f64 * scale) as i32 + (pad_x * 2) + (hyst * 2);
+                    let rw = (r.width as f64 * scale) as i32 + pad_x + pad_x_right + (hyst * 2);
                     let rh =
                         (r.height as f64 * scale) as i32 + pad_y_top + pad_y_bottom + (hyst * 2);
                     if cursor.x >= rx
