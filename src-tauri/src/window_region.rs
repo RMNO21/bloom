@@ -10,15 +10,14 @@
 
 use tauri::Window;
 use windows::Win32::Foundation::RECT;
-use windows::Win32::Graphics::Gdi::{
-    CombineRgn, CreateRectRgn, DeleteObject, SetWindowRgn, RGN_OR,
-};
+use windows::Win32::Graphics::Gdi::SetWindowRgn;
 
 use crate::types::IntRect;
 
 /// The rectangles in physical window pixels: scaled by the window's DPI scale,
 /// rounded outwards so nothing drawn at a fractional edge is clipped, and with
 /// empty ones dropped.
+#[allow(dead_code)]
 fn physical_rects(rects: &[IntRect], scale: f64) -> Vec<RECT> {
     rects
         .iter()
@@ -36,7 +35,7 @@ fn physical_rects(rects: &[IntRect], scale: f64) -> Vec<RECT> {
 /// the window). An empty list removes the region so the window renders its full
 /// surface without restriction.
 #[tauri::command]
-pub fn set_window_region(window: Window, rects: Vec<IntRect>) {
+pub fn set_window_region(window: Window, _rects: Vec<IntRect>) {
     let Ok(hwnd) = window.hwnd() else {
         return;
     };
@@ -51,48 +50,8 @@ pub fn set_window_region(window: Window, rects: Vec<IntRect>) {
     };
     crate::utils::set_click_through(hwnd, click_through);
 
-    if rects.is_empty() {
-        unsafe {
-            let _ = SetWindowRgn(hwnd, None, true);
-        }
-        return;
-    }
-
-    let scale = window.scale_factor().unwrap_or(1.0);
     unsafe {
-        use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
-        let mut client = RECT::default();
-        let has_client =
-            GetClientRect(hwnd, &mut client).is_ok() && client.right > 0 && client.bottom > 0;
-
-        let region = CreateRectRgn(0, 0, 0, 0);
-        for mut rect in physical_rects(&rects, scale) {
-            // Align boundary edges with physical client coordinates to prevent fractional
-            // DPI scaling differences between WebView2 and the Win32 window from clipping UI edges.
-            if has_client {
-                if rect.left <= 0 {
-                    rect.left = 0;
-                }
-                if rect.top <= 0 {
-                    rect.top = 0;
-                }
-                if rect.right >= client.right - 10 {
-                    rect.right = client.right;
-                }
-                if rect.bottom >= client.bottom - 10 {
-                    rect.bottom = client.bottom;
-                }
-            }
-
-            let part = CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
-            CombineRgn(Some(region), Some(region), Some(part), RGN_OR);
-            let _ = DeleteObject(part.into());
-        }
-        // The system owns the region from here on, so it isn't deleted on
-        // success. Redraw so the newly uncovered parts paint.
-        if SetWindowRgn(hwnd, Some(region), true) == 0 {
-            let _ = DeleteObject(region.into());
-        }
+        let _ = SetWindowRgn(hwnd, None, true);
     }
 }
 

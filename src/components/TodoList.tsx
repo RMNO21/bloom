@@ -15,9 +15,10 @@ const STORAGE_KEY = "bloom_todos";
 interface TodoListProps {
 	isTimerCollapsed?: boolean;
 	onToggleTimer?: () => void;
+	onPinNotch?: (pinned: boolean) => void;
 }
 
-export function TodoList({ isTimerCollapsed, onToggleTimer }: TodoListProps) {
+export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoListProps) {
 	const [todos, setTodos] = useState<TodoItem[]>(() => {
 		try {
 			const saved = localStorage.getItem(STORAGE_KEY);
@@ -121,6 +122,8 @@ export function TodoList({ isTimerCollapsed, onToggleTimer }: TodoListProps) {
 					placeholder="Add a new task..."
 					value={inputText}
 					onChange={(e) => setInputText(e.target.value)}
+					onFocus={() => onPinNotch?.(true)}
+					onBlur={() => onPinNotch?.(false)}
 					onKeyDown={(e) => {
 						if (e.key === "Enter") handleAddTodo();
 					}}

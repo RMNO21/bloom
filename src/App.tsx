@@ -1096,11 +1096,16 @@ function App() {
 			releaseNotchHover();
 		});
 
+		const unlistenBloomOpenNotch = listen("bloom-open-notch", () => {
+			openNotch("calendar");
+		});
+
 		return () => {
 			unlistenVisibility.then((f) => f());
 			unlistenNotchOverlap.then((f) => f());
 			unlistenNotchEdgeHover.then((f) => f());
 			unlistenNotchPointerLeft.then((f) => f());
+			unlistenBloomOpenNotch.then((f) => f());
 			document.removeEventListener("contextmenu", preventContext);
 		};
 	}, [windowLabel]);
@@ -1978,7 +1983,7 @@ function App() {
 	// selected default. The controls panel is always available as a fallback.
 	const openingPanel = (): NotchPanel => {
 		const preferred = rememberPanelEnabled ? lastPanel ?? defaultPanel : defaultPanel;
-		return panelAvailable(preferred) ? preferred : "command-center";
+		return panelAvailable(preferred) ? preferred : "calendar";
 	};
 
 	// Expands the notch into a panel, or into an activity's own view.
@@ -2555,11 +2560,12 @@ function App() {
 			resetTimer();
 			return;
 		}
-		// The time is part of the notch: a click opens it like anywhere else.
-		// Once open, it is a shortcut to the calendar.
+		// The time is part of the notch: clicking it toggles the to-do list / calendar panel
 		if (!isOpen) {
-			openNotch(openingPanel());
-		} else if (settingsCalendarEnabled) {
+			openNotch("calendar");
+		} else if (bloomMode === "calendar") {
+			setIsOpen(false);
+		} else {
 			setBloomMode("calendar");
 		}
 	};
@@ -2718,7 +2724,7 @@ function App() {
 	// Calculate width dynamically based on enabled features
 	const getDynamicWidth = () => {
 		if (bloomMode === "announcement" && announcement && !announcementDismissed) return 380;
-		if (isCalendarMode) return 480;
+		if (isCalendarMode) return isOpen ? 480 : 140 - clock24hTrim;
 		if (bloomMode === "shelf") return 380;
 		if (bloomMode === "command-center" && isOpen) return 350;
 		if (bloomMode === "wifi" || bloomMode === "bluetooth") return 350;
@@ -2750,7 +2756,7 @@ function App() {
 			return announcement.url ? 168 : 148;
 		}
 		// Sized to the to-do list / timer content.
-		if (bloomMode === "calendar") return 305;
+		if (bloomMode === "calendar") return isOpen ? 305 : 36;
 		// Shelf expands on mode alone (no hover needed: there is no cursor
 		// hover during an OS drag) and is sized to exactly one row of tiles,
 		// plus room for the scrollbar once the tiles overflow it.
@@ -2879,7 +2885,11 @@ function App() {
 					}}
 					onClick={(e) => {
 						e.stopPropagation();
-						if (!isOpen) openNotch(openingPanel());
+						if (!isOpen) {
+							openNotch(openingPanel());
+						} else {
+							setIsOpen(false);
+						}
 					}}
 					onHoverStart={() => {
 						releaseDeferredRef.current = false;
@@ -3809,7 +3819,7 @@ function App() {
 
 								{/* Calendar & Timer Split View */}
 								<AnimatePresence>
-									{settingsCalendarEnabled && isCalendarMode && (
+									{settingsCalendarEnabled && isCalendarMode && isOpen && (
 										<motion.div
 											className={`calendar-timer-content split-view ${isTimerCollapsed ? "timer-collapsed" : ""}`}
 											onClick={(e) =>
@@ -3824,6 +3834,7 @@ function App() {
 												<TodoList
 													isTimerCollapsed={isTimerCollapsed}
 													onToggleTimer={toggleTimerCollapsed}
+													onPinNotch={setNotchPinned}
 												/>
 											</div>
 

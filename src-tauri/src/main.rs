@@ -17,7 +17,7 @@ mod wifi;
 mod window_region;
 
 use std::sync::atomic::Ordering;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use windows::core::BOOL;
 use windows::Win32::System::Console::SetConsoleCtrlHandler;
 use windows::Win32::System::Console::{CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT};
@@ -386,6 +386,7 @@ fn main() {
                         loop {
                             let result = unsafe { WaitForSingleObject(h_event, INFINITE) };
                             if result == WAIT_OBJECT_0 {
+                                let _ = app_handle.emit("bloom-open-notch", ());
                                 crate::commands::open_settings_window(app_handle.clone());
                             }
                         }
