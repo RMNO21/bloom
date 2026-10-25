@@ -5,6 +5,7 @@ mod bluetooth;
 mod commands;
 mod diagnostics;
 mod dock_extras;
+mod notifications;
 mod services;
 mod shelf;
 mod shelf_preview;
@@ -161,6 +162,9 @@ fn main() {
             load_pinned_apps,
             save_todos,
             load_todos,
+            notifications::dismiss_notification,
+            notifications::focus_app_by_name,
+            notifications::emit_test_notification,
             clear_icon_cache,
             set_custom_icon,
             remove_custom_icon,
@@ -400,6 +404,7 @@ fn main() {
             diagnostics::record("services_ready", "hooks and settings watcher initialized");
             wifi::setup_wifi_notifications(app.handle().clone());
             bluetooth::setup_bluetooth_notifications(app.handle().clone());
+            notifications::setup_notifications(app.handle().clone());
 
             // Listen for second-instance signal to open settings
             if let Some(&h_event) = SINGLE_INSTANCE_EVENT_HANDLE.get() {

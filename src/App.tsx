@@ -44,6 +44,7 @@ import {
 	MemoryStick,
 	HardDrive,
 	ArrowUpDown,
+	Bell,
 	BellRing,
 	Play,
 	Pause,
@@ -425,10 +426,20 @@ type BloomMode =
 	| "calendar"
 	| "command-center"
 	| "announcement"
+	| "notification"
 	| "status"
 	| "shelf"
 	| "wifi"
 	| "bluetooth";
+
+interface NotificationItem {
+	id: number;
+	app_name: string;
+	title: string;
+	body: string;
+	actions: string[];
+	timestamp: number;
+}
 
 // The shelf is a short-lived stash: one row, newest first, oldest evicted.
 const SHELF_MAX_ITEMS = 10;
@@ -720,6 +731,7 @@ function App() {
 	const musicBubbleRef = useRef<HTMLButtonElement>(null);
 	const shelfBubbleRef = useRef<HTMLButtonElement>(null);
 	const reportNotchRect = useRef<() => void>(() => {});
+	const dismissActiveNotificationRef = useRef<() => void>(() => {});
 	// The pill's target box in window CSS px, and the sender that applies the
 	// notch window's region (holding earlier regions while it shrinks).
 	const pillTargetRef = useRef<RegionRect | null>(null);
@@ -1115,7 +1127,9 @@ function App() {
 		});
 
 		const unlistenNotchCollapseOutside = listen("notch-collapse-outside", () => {
-			if (isOpenRef.current) {
+			if (bloomModeRef.current === "notification") {
+				dismissActiveNotificationRef.current();
+			} else if (isOpenRef.current) {
 				notchPinnedRef.current = false;
 				releaseDeferredRef.current = false;
 				releaseNotchHover();
@@ -1282,8 +1296,110 @@ function App() {
 		};
 	}, [windowLabel, systemSettingsReady, waitForStartupSplash, dockEnabled, dockMode, notchMode]);
 
-	// Bloom mode state: 'music', 'calendar', 'command-center', 'announcement', 'shelf', or 'status'
+	// Bloom mode state: 'music', 'calendar', 'command-center', 'announcement', 'notification', 'shelf', or 'status'
 	const [bloomMode, setBloomMode] = useState<BloomMode>("status");
+
+	// Active incoming notification card state
+	const [activeNotification, setActiveNotification] = useState<NotificationItem | null>(null);
+	const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const notifResumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const prevModeBeforeNotifRef = useRef<BloomMode>("status");
+	const prevOpenBeforeNotifRef = useRef<boolean>(false);
+
+	useEffect(() => {
+		if (windowLabel === "main") {
+			invoke("set_notch_is_open", { open: isOpen || bloomMode === "notification" }).catch(() => {});
+		}
+	}, [isOpen, bloomMode, windowLabel]);
+
+	const dismissActiveNotification = useCallback(() => {
+		if (notifTimeoutRef.current) {
+			clearTimeout(notifTimeoutRef.current);
+			notifTimeoutRef.current = null;
+		}
+		if (notifResumeTimeoutRef.current) {
+			clearTimeout(notifResumeTimeoutRef.current);
+			notifResumeTimeoutRef.current = null;
+		}
+		setActiveNotification(null);
+		if (bloomModeRef.current === "notification") {
+			setIsOpen(prevOpenBeforeNotifRef.current);
+			setBloomMode(prevModeBeforeNotifRef.current);
+		}
+	}, []);
+	dismissActiveNotificationRef.current = dismissActiveNotification;
+
+	const handleNotifPointerEnter = useCallback(() => {
+		if (notifTimeoutRef.current) {
+			clearTimeout(notifTimeoutRef.current);
+			notifTimeoutRef.current = null;
+		}
+		if (notifResumeTimeoutRef.current) {
+			clearTimeout(notifResumeTimeoutRef.current);
+			notifResumeTimeoutRef.current = null;
+		}
+	}, []);
+
+	const handleNotifPointerLeave = useCallback(() => {
+		if (notifResumeTimeoutRef.current) {
+			clearTimeout(notifResumeTimeoutRef.current);
+		}
+		notifResumeTimeoutRef.current = setTimeout(() => {
+			dismissActiveNotification();
+		}, 3500);
+	}, [dismissActiveNotification]);
+
+	const handleNotificationAction = useCallback(
+		(action: string) => {
+			if (!activeNotification) return;
+			const isActionOpen = action.toLowerCase() === "open" || action.toLowerCase() === "view";
+			if (isActionOpen && activeNotification.app_name) {
+				invoke("focus_app_by_name", { appName: activeNotification.app_name }).catch(() => {});
+			}
+			invoke("dismiss_notification", { id: activeNotification.id }).catch(() => {});
+			dismissActiveNotification();
+		},
+		[activeNotification, dismissActiveNotification]
+	);
+
+	useEffect(() => {
+		const unlistenPromise = listen<NotificationItem>("bloom-new-notification", (event) => {
+			const data = event.payload;
+			if (!data || (!data.title && !data.body)) return;
+
+			if (bloomModeRef.current !== "notification") {
+				prevModeBeforeNotifRef.current = bloomModeRef.current;
+				prevOpenBeforeNotifRef.current = isOpenRef.current;
+			}
+
+			setActiveNotification(data);
+			setBloomMode("notification");
+
+			if (notchMode === "peek") {
+				triggerEventPeek(8000);
+			}
+
+			if (notifTimeoutRef.current) {
+				clearTimeout(notifTimeoutRef.current);
+			}
+			if (notifResumeTimeoutRef.current) {
+				clearTimeout(notifResumeTimeoutRef.current);
+			}
+			notifTimeoutRef.current = setTimeout(() => {
+				dismissActiveNotification();
+			}, 7000);
+		});
+
+		return () => {
+			unlistenPromise.then((unlisten) => unlisten());
+			if (notifTimeoutRef.current) {
+				clearTimeout(notifTimeoutRef.current);
+			}
+			if (notifResumeTimeoutRef.current) {
+				clearTimeout(notifResumeTimeoutRef.current);
+			}
+		};
+	}, [notchMode, triggerEventPeek, dismissActiveNotification]);
 
 	// Shelf: files and selected text stashed in the notch via drag-and-drop.
 	// Files are stored as plain paths (references, never copies). Session-scoped
@@ -1850,7 +1966,7 @@ function App() {
 	// Wheel and swipe navigate panels, even from a collapsed live activity.
 	// Music and shelf remain entry points through their activity affordances.
 	const cycleBloomMode = (direction: 1 | -1) => {
-		if (bloomMode === "announcement") return false;
+		if (bloomMode === "announcement" || bloomMode === "notification") return false;
 		const panels = NOTCH_PANELS.filter(panelAvailable);
 		const currentIndex = panels.indexOf(bloomMode as NotchPanel);
 		const nextMode = currentIndex === -1
@@ -2094,7 +2210,7 @@ function App() {
 
 	// Expands the notch into a panel, or into an activity's own view.
 	const openNotch = (view: NotchPanel | "music" | "shelf") => {
-		if (bloomMode === "announcement") return;
+		if (bloomMode === "announcement" || bloomMode === "notification") return;
 		hasSwitchedPanelRef.current = false;
 		setIsOpen(true);
 		setBloomMode(view);
@@ -2143,7 +2259,7 @@ function App() {
 	// session exists, the timer (with music in its bubble) once one is set, and
 	// the clock otherwise. An open notch is left alone.
 	useEffect(() => {
-		if (isOpen || announcementOpenRef.current) return;
+		if (isOpen || announcementOpenRef.current || bloomMode === "notification") return;
 		if ((bloomMode === "status" || bloomMode === "music") && bloomMode !== collapsedMode) {
 			setBloomMode(collapsedMode);
 		}
@@ -2842,6 +2958,7 @@ function App() {
 
 	// Calculate width dynamically based on enabled features
 	const getDynamicWidth = () => {
+		if (bloomMode === "notification" && activeNotification) return 390;
 		if (bloomMode === "announcement" && announcement && !announcementDismissed) return 380;
 		if (isCalendarMode && isOpen) return 480;
 		if (bloomMode === "shelf") return 380;
@@ -2876,6 +2993,7 @@ function App() {
 		if (!isExpanded || !isVisible || isHidden) {
 			return isImpacted ? 28.9 : 44.2;
 		}
+		if (bloomMode === "notification" && activeNotification) return 136;
 		// Announcement card: body is line-clamped, so a fixed size fits both cases.
 		if (bloomMode === "announcement" && announcement && !announcementDismissed) {
 			return announcement.url ? 168 : 148;
@@ -3349,7 +3467,7 @@ function App() {
 												</div>
 											)}
 										</motion.div>
-									) : (
+									) : bloomMode === "notification" ? null : (
 										<motion.div
 											key="standard-view-group"
 											initial={{ opacity: 0, y: -5 }}
@@ -3925,6 +4043,99 @@ function App() {
 													</div>
 													<span className="cc-classic-percentage">{currentBrightness}%</span>
 												</div>
+											</div>
+										</motion.div>
+									)}
+								</AnimatePresence>
+
+								{/* Notification Card */}
+								<AnimatePresence>
+									{bloomMode === "notification" && activeNotification && (
+										<motion.div
+											className="notch-notification-content"
+											onClick={() => handleNotificationAction("Open")}
+											onPointerEnter={handleNotifPointerEnter}
+											onPointerLeave={handleNotifPointerLeave}
+											initial={{ opacity: 0, y: -8, scale: 0.98 }}
+											animate={{ opacity: 1, y: 0, scale: 1 }}
+											exit={{
+												opacity: 0,
+												y: -8,
+												scale: 0.98,
+												filter: "blur(4px)",
+												transition: { duration: 0.15 }
+											}}
+											transition={{ type: "spring", stiffness: 450, damping: 32 }}
+										>
+											<div className="notif-header">
+												<div className="notif-app-info">
+													<div className="notif-badge">
+														<Bell size={11} strokeWidth={2.5} />
+													</div>
+													<span className="notif-app-name">{activeNotification.app_name}</span>
+													<span className="notif-dot">•</span>
+													<span className="notif-time">Just now</span>
+												</div>
+												<button
+													className="notif-close-btn"
+													onClick={(e) => {
+														e.stopPropagation();
+														dismissActiveNotification();
+													}}
+													title="Dismiss"
+													aria-label="Dismiss notification"
+												>
+													<X size={12} strokeWidth={2.4} />
+												</button>
+											</div>
+
+											<div className="notif-body-container">
+												<div className="notif-title" title={activeNotification.title}>
+													{activeNotification.title}
+												</div>
+												{activeNotification.body && (
+													<div className="notif-message" title={activeNotification.body}>
+														{activeNotification.body}
+													</div>
+												)}
+											</div>
+
+											<div className="notif-actions-row">
+												{activeNotification.actions && activeNotification.actions.length > 0 ? (
+													activeNotification.actions.map((action, idx) => (
+														<button
+															key={idx}
+															className={`notif-action-btn ${action.toLowerCase() === "open" ? "primary" : "secondary"}`}
+															onClick={(e) => {
+																e.stopPropagation();
+																handleNotificationAction(action);
+															}}
+														>
+															{action}
+														</button>
+													))
+												) : (
+													<>
+														<button
+															className="notif-action-btn primary"
+															onClick={(e) => {
+																e.stopPropagation();
+																handleNotificationAction("Open");
+															}}
+														>
+															Open
+														</button>
+														<button
+															className="notif-action-btn secondary"
+															onClick={(e) => {
+																e.stopPropagation();
+																handleNotificationAction("Dismiss");
+															}}
+														>
+															Dismiss
+														</button>
+													</>
+												)}
 											</div>
 										</motion.div>
 									)}
