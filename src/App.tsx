@@ -1766,7 +1766,9 @@ function App() {
 
 	// Window height is now kept constant to prevent rendering layout lag and sharp corners
 
-	const lastScrollTime = useRef(0);
+	const isScrollLockedRef = useRef(false);
+	const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 	const handleWheel = (e: React.WheelEvent) => {
 		const target = e.target as HTMLElement;
 		if (
@@ -1791,14 +1793,28 @@ function App() {
 			}
 		}
 
-		const now = Date.now();
-		if (now - lastScrollTime.current < 250) return;
-
-		// Use absolute values to detect horizontal swipe gestures on trackpad
+		// Ignore tiny movements / jitter
 		const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-		if (Math.abs(delta) < 5) return; // Ignore tiny movements
+		if (Math.abs(delta) < 10) return;
 
-		if (cycleBloomMode(delta > 0 ? 1 : -1)) lastScrollTime.current = now;
+		// Debounce the end of this scroll gesture:
+		// Any continuous events extend the lock so that no matter how much the user scrolls,
+		// the page only switches once per gesture.
+		if (scrollEndTimerRef.current) {
+			clearTimeout(scrollEndTimerRef.current);
+		}
+		scrollEndTimerRef.current = setTimeout(() => {
+			isScrollLockedRef.current = false;
+			scrollEndTimerRef.current = null;
+		}, 500);
+
+		if (isScrollLockedRef.current) {
+			return;
+		}
+
+		// First event of this gesture: lock and switch page once
+		isScrollLockedRef.current = true;
+		cycleBloomMode(delta > 0 ? 1 : -1);
 	};
 
 	function panelAvailable(panel: NotchPanel) {
