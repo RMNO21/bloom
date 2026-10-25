@@ -1,0 +1,276 @@
+/* TodoList Component Styles */
+.todo-container {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	box-sizing: border-box;
+}
+
+.todo-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 2px;
+	min-height: 22px;
+}
+
+.todo-title-wrap {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+}
+
+.todo-header-icon {
+	color: var(--bloom-accent, #38bdf8);
+	opacity: 0.9;
+}
+
+.todo-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--bloom-text, #ffffff);
+	letter-spacing: 0.2px;
+}
+
+.todo-badge {
+	font-size: 10px;
+	font-weight: 500;
+	padding: 1px 7px;
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.12);
+	color: rgba(255, 255, 255, 0.75);
+}
+
+.todo-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.todo-btn-clear {
+	background: transparent;
+	border: none;
+	color: rgba(255, 255, 255, 0.5);
+	font-size: 11px;
+	font-weight: 500;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 6px;
+	transition: all 0.15s ease;
+}
+
+.todo-btn-clear:hover {
+	color: #f87171;
+	background: rgba(248, 113, 113, 0.12);
+}
+
+.todo-btn-timer-toggle {
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	color: rgba(255, 255, 255, 0.6);
+	width: 22px;
+	height: 22px;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.todo-btn-timer-toggle:hover {
+	background: rgba(255, 255, 255, 0.15);
+	color: white;
+}
+
+.todo-btn-timer-toggle.active {
+	background: rgba(56, 189, 248, 0.2);
+	border-color: rgba(56, 189, 248, 0.4);
+	color: #38bdf8;
+}
+
+/* Input Form */
+.todo-input-form {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	padding: 3px 6px 3px 10px;
+	transition: all 0.2s ease;
+}
+
+.todo-input-form:focus-within {
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.28);
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.todo-input {
+	flex: 1;
+	background: transparent;
+	border: none;
+	outline: none;
+	color: var(--bloom-text, #ffffff);
+	font-size: 12px;
+	font-family: inherit;
+}
+
+.todo-input::placeholder {
+	color: rgba(255, 255, 255, 0.35);
+}
+
+.todo-add-btn {
+	background: transparent;
+	border: none;
+	color: rgba(255, 255, 255, 0.3);
+	width: 22px;
+	height: 22px;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.todo-add-btn.has-text {
+	color: white;
+	background: var(--bloom-accent, #0284c7);
+}
+
+.todo-add-btn.has-text:hover {
+	background: #0369a1;
+	transform: scale(1.05);
+}
+
+/* Scroll list */
+.todo-list-scroll {
+	flex: 1;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	padding-right: 2px;
+	max-height: 185px;
+}
+
+.todo-list-scroll::-webkit-scrollbar {
+	width: 4px;
+}
+
+.todo-list-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.todo-list-scroll::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.18);
+	border-radius: 4px;
+}
+
+.todo-list-scroll::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.3);
+}
+
+/* Task Item */
+.todo-item {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 6px 8px;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 8px;
+	cursor: pointer;
+	user-select: none;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.todo-item:hover {
+	background: rgba(255, 255, 255, 0.09);
+	border-color: rgba(255, 255, 255, 0.12);
+}
+
+.todo-checkbox {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	border: 1.5px solid rgba(255, 255, 255, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	transition: all 0.15s ease;
+	color: white;
+}
+
+.todo-item:hover .todo-checkbox {
+	border-color: rgba(255, 255, 255, 0.7);
+}
+
+.todo-item.completed .todo-checkbox {
+	background: #10b981;
+	border-color: #10b981;
+}
+
+.todo-text {
+	flex: 1;
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.9);
+	word-break: break-word;
+	line-height: 1.3;
+	transition: all 0.15s ease;
+}
+
+.todo-item.completed .todo-text {
+	text-decoration: line-through;
+	color: rgba(255, 255, 255, 0.4);
+}
+
+.todo-delete-btn {
+	background: transparent;
+	border: none;
+	color: rgba(255, 255, 255, 0.4);
+	padding: 3px;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	transition: all 0.15s ease;
+	cursor: pointer;
+}
+
+.todo-item:hover .todo-delete-btn {
+	opacity: 1;
+}
+
+.todo-delete-btn:hover {
+	color: #ef4444;
+	background: rgba(239, 68, 68, 0.15);
+}
+
+/* Empty State */
+.todo-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 120px;
+	gap: 8px;
+	color: rgba(255, 255, 255, 0.4);
+	font-size: 11.5px;
+	text-align: center;
+}
+
+.todo-empty-icon {
+	color: rgba(255, 255, 255, 0.25);
+}
+
+/* Column adjustment when timer is collapsed */
+.calendar-column.full-width {
+	flex: 1 !important;
+}

@@ -38,6 +38,7 @@ import { EdgeSurface } from "./components/EdgeSurface";
 import { ShelfTypeIcon } from "./components/ShelfTypeIcon";
 import { WifiPanel } from "./components/WifiPanel";
 import { BluetoothPanel } from "./components/BluetoothPanel";
+import { TodoList } from "./components/TodoList";
 import {
 	Cpu,
 	MemoryStick,
@@ -354,16 +355,6 @@ export const Visualizer = memo(function Visualizer({
 		</div>
 	);
 });
-
-// Number of week rows the current month occupies. Calendar mode sizes the
-// notch to the month so five-row months stay compact and six-row months never
-// clip the last row.
-const calendarMonthRows = (() => {
-	const now = new Date();
-	const firstWeekday = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
-	const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-	return Math.ceil((firstWeekday + daysInMonth) / 7);
-})();
 
 // Odometer-style digit for the timer clock. When the value changes the old
 // digit rolls up and out while the new one rolls in from below with a slight
@@ -698,6 +689,17 @@ function App() {
 		() => localStorage.getItem("bloom-dock-enabled") !== "false"
 	);
 	const [isNotchHovered, setIsNotchHovered] = useState(false);
+	const [isTimerCollapsed, setIsTimerCollapsed] = useState(() => {
+		return localStorage.getItem("bloom-timer-collapsed") === "true";
+	});
+
+	const toggleTimerCollapsed = () => {
+		setIsTimerCollapsed((prev) => {
+			const next = !prev;
+			localStorage.setItem("bloom-timer-collapsed", String(next));
+			return next;
+		});
+	};
 
 	const [isEdgeHovered, setIsEdgeHovered] = useState(false);
 	const [isOverlapped, setIsOverlapped] = useState(false);
@@ -1736,6 +1738,8 @@ function App() {
 		const target = e.target as HTMLElement;
 		if (
 			target.closest(".calendar-grid") ||
+			target.closest(".todo-list-scroll") ||
+			target.closest(".todo-container") ||
 			target.closest(".timer-column") ||
 			target.closest(".shelf-content") ||
 			target.closest(".qp-list")
@@ -2745,8 +2749,8 @@ function App() {
 		if (bloomMode === "announcement" && announcement && !announcementDismissed) {
 			return announcement.url ? 168 : 148;
 		}
-		// Sized to the calendar's week-row count plus the timer's fixed content.
-		if (bloomMode === "calendar") return calendarMonthRows >= 6 ? 305 : 273;
+		// Sized to the to-do list / timer content.
+		if (bloomMode === "calendar") return 305;
 		// Shelf expands on mode alone (no hover needed: there is no cursor
 		// hover during an OS drag) and is sized to exactly one row of tiles,
 		// plus room for the scrollbar once the tiles overflow it.
@@ -3807,7 +3811,7 @@ function App() {
 								<AnimatePresence>
 									{settingsCalendarEnabled && isCalendarMode && (
 										<motion.div
-											className="calendar-timer-content split-view"
+											className={`calendar-timer-content split-view ${isTimerCollapsed ? "timer-collapsed" : ""}`}
 											onClick={(e) =>
 												e.stopPropagation()
 											} /* Block mode switches when clicking inside */
@@ -3816,99 +3820,104 @@ function App() {
 											exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }}
 											transition={{ type: "spring", stiffness: 400, damping: 30 }}
 										>
-											<div className="calendar-column">
-												<Calendar />
+											<div className={`calendar-column ${isTimerCollapsed ? "full-width" : ""}`}>
+												<TodoList
+													isTimerCollapsed={isTimerCollapsed}
+													onToggleTimer={toggleTimerCollapsed}
+												/>
 											</div>
 
-											<div className="timer-column">
-												<div className={`timer-section-new state-${timerState}`}>
-													<div className="timer-main">
-														<div className="timer-status">
-															{isEditingTimer
-																? "Set duration"
-																: isTimerFinished
-																	? "Time's up"
-																	: timerEndTime
-																		? `${timerState === "paused" ? "Paused · " : ""}ends ${timerEndTime}`
-																		: "Click to edit"}
-														</div>
-
-														<div className={`timer-clock-row ${isEditingTimer ? "editing" : ""}`}>
-															<div
-																className={`timer-clock ${isEditingTimer && !timerEditValid ? "invalid" : ""}`}
-																onClick={beginTimerEdit}
-																title={isTimerRunning ? undefined : "Click to set a duration"}
-															>
-																{minuteDigitItems.map(({ digit, key }) => (
-																	<RollDigit key={key} value={digit} compact={clockCompact} />
-																))}
-																<span className="timer-colon">:</span>
-																{secondDigitItems.map(({ digit, key }) => (
-																	<RollDigit key={key} value={digit} compact={clockCompact} />
-																))}
+											{!isTimerCollapsed && (
+												<div className="timer-column">
+													<div className={`timer-section-new state-${timerState}`}>
+														<div className="timer-main">
+															<div className="timer-status">
+																{isEditingTimer
+																	? "Set duration"
+																	: isTimerFinished
+																		? "Time's up"
+																		: timerEndTime
+																			? `${timerState === "paused" ? "Paused · " : ""}ends ${timerEndTime}`
+																			: "Click to edit"}
 															</div>
-															<span className="timer-edit-underline" aria-hidden="true" />
-															{isEditingTimer && (
-																<input
-																	ref={timerInputRef}
-																	className="timer-edit-input"
-																	type="text"
-																	inputMode="numeric"
-																	aria-label="Set timer duration"
-																	value={formatTimerDigits(timerEditDigits)}
-																	onChange={(e) =>
-																		setTimerEditDigits(
-																			e.target.value.replace(/\D/g, "").slice(0, 5)
-																		)
-																	}
-																	onKeyDown={(e) => {
-																		if (e.key === "Enter") commitTimerEdit(true);
-																	}}
-																	onBlur={() => commitTimerEdit(false)}
-																	onWheel={(e) => e.stopPropagation()}
-																/>
-															)}
+
+															<div className={`timer-clock-row ${isEditingTimer ? "editing" : ""}`}>
+																<div
+																	className={`timer-clock ${isEditingTimer && !timerEditValid ? "invalid" : ""}`}
+																	onClick={beginTimerEdit}
+																	title={isTimerRunning ? undefined : "Click to set a duration"}
+																>
+																	{minuteDigitItems.map(({ digit, key }) => (
+																		<RollDigit key={key} value={digit} compact={clockCompact} />
+																	))}
+																	<span className="timer-colon">:</span>
+																	{secondDigitItems.map(({ digit, key }) => (
+																		<RollDigit key={key} value={digit} compact={clockCompact} />
+																	))}
+																</div>
+																<span className="timer-edit-underline" aria-hidden="true" />
+																{isEditingTimer && (
+																	<input
+																		ref={timerInputRef}
+																		className="timer-edit-input"
+																		type="text"
+																		inputMode="numeric"
+																		aria-label="Set timer duration"
+																		value={formatTimerDigits(timerEditDigits)}
+																		onChange={(e) =>
+																			setTimerEditDigits(
+																				e.target.value.replace(/\D/g, "").slice(0, 5)
+																			)
+																		}
+																		onKeyDown={(e) => {
+																			if (e.key === "Enter") commitTimerEdit(true);
+																		}}
+																		onBlur={() => commitTimerEdit(false)}
+																		onWheel={(e) => e.stopPropagation()}
+																	/>
+																)}
+															</div>
 														</div>
-													</div>
 
-													<div className="timer-controls-row">
-														<span className="timer-controls-spacer" aria-hidden="true" />
-														<button
-															onClick={handlePrimaryTimerAction}
-															onMouseDown={(e) => e.preventDefault()}
-															className="timer-btn-play"
-															title={primaryTimerLabel}
-														>
-															{isTimerRunning ? (
-																<Pause size={14} strokeWidth={2} fill="currentColor" />
-															) : (
-																<Play size={14} strokeWidth={2} fill="currentColor" />
-															)}
-															<span>{primaryTimerLabel}</span>
-														</button>
-														<button
-															onClick={resetTimer}
-															className="timer-btn-reset"
-															disabled={timerSeconds === 0 && !isTimerFinished}
-															title="Reset"
-														>
-															<RotateCcw size={14} strokeWidth={2.5} />
-														</button>
-													</div>
-
-													<div className="timer-preset-group">
-														{[5, 15, 25, 50].map((mins) => (
+														<div className="timer-controls-row">
+															<span className="timer-controls-spacer" aria-hidden="true" />
 															<button
-																key={mins}
-																onClick={() => startTimer(mins * 60)}
-																className={`timer-preset-segment ${lastDurationSeconds === mins * 60 && !isTimerFinished ? "active" : ""}`}
+																onClick={handlePrimaryTimerAction}
+																onMouseDown={(e) => e.preventDefault()}
+																className="timer-btn-play"
+																title={primaryTimerLabel}
 															>
-																{mins}m
+																{isTimerRunning ? (
+																	<Pause size={14} strokeWidth={2} fill="currentColor" />
+																) : (
+																	<Play size={14} strokeWidth={2} fill="currentColor" />
+																)}
+																<span>{primaryTimerLabel}</span>
 															</button>
-														))}
+															<button
+																onClick={resetTimer}
+																className="timer-btn-reset"
+																disabled={timerSeconds === 0 && !isTimerFinished}
+																title="Reset"
+															>
+																<RotateCcw size={14} strokeWidth={2.5} />
+															</button>
+														</div>
+
+														<div className="timer-preset-group">
+															{[5, 15, 25, 50].map((mins) => (
+																<button
+																	key={mins}
+																	onClick={() => startTimer(mins * 60)}
+																	className={`timer-preset-segment ${lastDurationSeconds === mins * 60 && !isTimerFinished ? "active" : ""}`}
+																>
+																	{mins}m
+																</button>
+															))}
+														</div>
 													</div>
 												</div>
-											</div>
+											)}
 										</motion.div>
 									)}
 								</AnimatePresence>
@@ -4101,57 +4110,6 @@ function App() {
 						</motion.button>
 					)}
 				</AnimatePresence>
-			</div>
-		</div>
-	);
-}
-
-function Calendar() {
-	const [date] = useState(new Date());
-
-	const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-	const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
-
-	const currentMonth = date.getMonth();
-	const currentYear = date.getFullYear();
-	const monthName = date.toLocaleString("default", { month: "long" });
-
-	const totalDays = daysInMonth(currentYear, currentMonth);
-	const startDay = firstDayOfMonth(currentYear, currentMonth);
-	const days = [];
-
-	// Padding for start of month
-	for (let i = 0; i < startDay; i++) {
-		days.push(<div key={`empty-${i}`} className="calendar-day empty" />);
-	}
-
-	// Actual days
-	const today = new Date().getDate();
-	const isCurrentMonth =
-		new Date().getMonth() === currentMonth && new Date().getFullYear() === currentYear;
-
-	for (let i = 1; i <= totalDays; i++) {
-		days.push(
-			<div key={i} className={`calendar-day ${isCurrentMonth && i === today ? "today" : ""}`}>
-				{i}
-			</div>
-		);
-	}
-
-	return (
-		<div className="calendar-container">
-			<div className="calendar-header">
-				<span className="month-year">
-					{monthName} {currentYear}
-				</span>
-			</div>
-			<div className="calendar-grid">
-				{["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-					<div key={`${d}-${i}`} className="day-name">
-						{d}
-					</div>
-				))}
-				{days}
 			</div>
 		</div>
 	);
