@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, memo } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, memo } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -377,6 +377,59 @@ const Dock = memo(function Dock() {
 			clearTimeout(t2);
 		};
 	}, [showSystemTray]);
+
+	// Auto-return to normal taskbar immediately when dock hides
+	useEffect(() => {
+		if (isHidden && showSystemTray) {
+			setShowSystemTray(false);
+		}
+	}, [isHidden, showSystemTray]);
+
+	// Auto-return to normal taskbar after 30 seconds of inactivity on dock while showing system tray
+	const trayInactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const resetTrayInactivityTimer = useCallback(() => {
+		if (trayInactivityTimerRef.current) {
+			clearTimeout(trayInactivityTimerRef.current);
+			trayInactivityTimerRef.current = null;
+		}
+		if (showSystemTray) {
+			trayInactivityTimerRef.current = setTimeout(() => {
+				setShowSystemTray(false);
+			}, 30000);
+		}
+	}, [showSystemTray]);
+
+	useEffect(() => {
+		if (!showSystemTray) {
+			if (trayInactivityTimerRef.current) {
+				clearTimeout(trayInactivityTimerRef.current);
+				trayInactivityTimerRef.current = null;
+			}
+			return;
+		}
+
+		resetTrayInactivityTimer();
+
+		const dockEl = dockRef.current;
+		const handleActivity = () => {
+			resetTrayInactivityTimer();
+		};
+
+		dockEl?.addEventListener("pointermove", handleActivity);
+		dockEl?.addEventListener("pointerdown", handleActivity);
+		dockEl?.addEventListener("wheel", handleActivity, { passive: true });
+
+		return () => {
+			if (trayInactivityTimerRef.current) {
+				clearTimeout(trayInactivityTimerRef.current);
+				trayInactivityTimerRef.current = null;
+			}
+			dockEl?.removeEventListener("pointermove", handleActivity);
+			dockEl?.removeEventListener("pointerdown", handleActivity);
+			dockEl?.removeEventListener("wheel", handleActivity);
+		};
+	}, [showSystemTray, resetTrayInactivityTimer]);
 
 	useEffect(() => {
 		const init = async () => {
@@ -1797,12 +1850,12 @@ const Dock = memo(function Dock() {
 								animate={{ opacity: 1, x: 0 }}
 								exit={{ opacity: 0, x: -20 }}
 								transition={{ duration: 0.15 }}
-								style={{ display: "flex", alignItems: "center", gap: 12 }}
+								className="dock-tray-container"
 							>
 								{/* Return button */}
 								<motion.div
 									layout
-									className="dock-icon-wrapper"
+									className="dock-icon-wrapper dock-tray-item-wrapper"
 									onContextMenu={(e) => {
 										e.preventDefault();
 										e.stopPropagation();
@@ -1827,7 +1880,7 @@ const Dock = memo(function Dock() {
 											setShowSystemTray(false);
 										}}
 									>
-										<ChevronLeft size={20} strokeWidth={2.4} />
+										<ChevronLeft size={18} strokeWidth={2.4} />
 									</motion.div>
 								</motion.div>
 
@@ -1865,7 +1918,7 @@ const Dock = memo(function Dock() {
 														scale: { type: "spring", stiffness: 400, damping: 25, delay: idx * 0.02 }
 													}
 												}}
-												className="dock-icon-wrapper"
+												className="dock-icon-wrapper dock-tray-item-wrapper"
 												onMouseEnter={() => setHoveredApp(`tray-${idx}`)}
 												onMouseLeave={() => {
 													setHoveredApp(null);
@@ -1889,7 +1942,7 @@ const Dock = memo(function Dock() {
 											>
 												<div className="tooltip">{trayApp.name || "System Tray"}</div>
 												<motion.div
-													className="dock-icon"
+													className="dock-icon dock-tray-icon"
 													variants={iconVariants}
 													animate={
 														pressedApp === `tray-${idx}`

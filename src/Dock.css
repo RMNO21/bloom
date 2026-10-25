@@ -290,7 +290,63 @@ body {
 	box-shadow: none;
 }
 
+/* System Tray Container & Items */
+.dock-tray-container {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+	height: 36px;
+	min-height: 36px;
+	overflow: visible;
+}
+
+.dock-tray-item-wrapper {
+	height: 36px;
+	min-height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.dock-icon.dock-tray-icon {
+	width: 26px !important;
+	height: 26px !important;
+	border-radius: 7px !important;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+.dock-icon.dock-tray-icon img {
+	width: 18px !important;
+	height: 18px !important;
+	object-fit: contain;
+}
+
+.dock-icon-only .dock-icon.dock-tray-icon {
+	width: 26px !important;
+	height: 26px !important;
+	background: transparent !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+.dock-icon-only .dock-icon.dock-tray-icon img {
+	width: 20px !important;
+	height: 20px !important;
+}
+
+.dock-icon.dock-tray-icon .fallback-icon {
+	font-size: 11px !important;
+}
+
+.dock-tray-container .dock-app-divider {
+	height: 20px;
+	margin: 0 3px;
+}
+
 .dock-icon.dock-tray-back-icon {
+	width: 26px !important;
+	height: 26px !important;
 	background: transparent !important;
 	border: none !important;
 	border-radius: 0 !important;
@@ -309,8 +365,8 @@ body {
 }
 
 .dock-icon.dock-tray-back-icon svg {
-	width: 20px !important;
-	height: 20px !important;
+	width: 18px !important;
+	height: 18px !important;
 	stroke: var(--bloom-text, white) !important;
 	filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
