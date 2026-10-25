@@ -1217,7 +1217,7 @@ function App() {
 			splashDone.current = true;
 			if (splashTimer !== undefined) window.clearTimeout(splashTimer);
 			unlistenSplash?.();
-			startTimer = window.setTimeout(reconcile, initialSystemSyncDone.current ? 0 : 400);
+			startTimer = window.setTimeout(reconcile, 0);
 		};
 
 		if (waitForStartupSplash && !splashDone.current && !initialSystemSyncDone.current) {

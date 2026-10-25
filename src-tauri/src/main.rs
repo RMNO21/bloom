@@ -218,15 +218,35 @@ fn main() {
             bluetooth::bluetooth_unpair
         ])
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            unsafe {
+                use windows::Win32::System::Threading::{
+                    GetCurrentProcess, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS,
+                };
+                let _ = SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
+            }
+
             init_taskbar_marker(app.handle());
             // Populate the settings cache before anything else: a webview can
             // invoke save_setting as soon as it loads, which happens before the
             // rest of this hook runs.
             crate::utils::init_settings_cache(app.handle());
-            // Crash-recovery: if a previous session was force-killed while the native
-            // taskbar was hidden, restore it now. Runs before the frontend re-hides it
-            // (init_dock fires after a delay), so the flag must be removed first.
-            if taskbar_marker_exists() {
+
+            let is_dock_on = crate::utils::dock_enabled();
+            if is_dock_on {
+                // Instantly hide the native taskbar right at startup before explorer renders over it!
+                let _ = crate::utils::set_taskbar_visibility(false, false);
+                NATIVE_TASKBAR_HIDDEN.store(true, Ordering::Relaxed);
+
+                // Immediately trigger dock initialization in Rust in parallel with webview startup
+                let dock_mode = crate::utils::get_setting_str(&app.handle(), "bloom-dock-mode")
+                    .unwrap_or_else(|| "smart".to_string());
+                let h = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::commands::init_dock(h, dock_mode).await;
+                });
+            } else if taskbar_marker_exists() {
+                // Only restore native taskbar if the user actually disabled Bloom's dock
                 restore_taskbar_after_crash();
                 NATIVE_TASKBAR_HIDDEN.store(false, Ordering::Relaxed);
             }

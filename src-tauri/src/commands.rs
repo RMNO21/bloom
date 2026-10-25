@@ -212,8 +212,8 @@ pub async fn init_dock(app: AppHandle, mode: String) {
                             if ph <= 10 {
                                 // outer_size() not ready yet — retry next tick
                                 if attempt < 19 {
-                                    tokio::time::sleep(tokio::time::Duration::from_millis(200))
-                                        .await;
+                                    let sleep_ms = if attempt < 5 { 25 } else if attempt < 10 { 60 } else { 150 };
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(sleep_ms)).await;
                                 }
                                 continue;
                             }
@@ -244,7 +244,8 @@ pub async fn init_dock(app: AppHandle, mode: String) {
                                     && rect.bottom - rect.top == ph
                             };
                             if !positioned {
-                                tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                                let sleep_ms = if attempt < 5 { 25 } else if attempt < 10 { 60 } else { 150 };
+                                tokio::time::sleep(tokio::time::Duration::from_millis(sleep_ms)).await;
                                 continue;
                             }
                             // Re-assert topmost after repositioning
@@ -263,7 +264,8 @@ pub async fn init_dock(app: AppHandle, mode: String) {
                         }
                     }
                     if attempt < 19 {
-                        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                        let sleep_ms = if attempt < 5 { 25 } else if attempt < 10 { 60 } else { 150 };
+                        tokio::time::sleep(tokio::time::Duration::from_millis(sleep_ms)).await;
                     }
                 }
             });
@@ -371,7 +373,8 @@ pub async fn change_dock_mode(app: AppHandle, mode: String) {
                             if let Some((m_size, m_pos)) = monitor_info {
                                 if ph <= 10 {
                                     if attempt < 9 {
-                                        tokio::time::sleep(tokio::time::Duration::from_millis(300))
+                                        let sleep_ms = if attempt < 4 { 30 } else { 150 };
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(sleep_ms))
                                             .await;
                                     }
                                     continue;
