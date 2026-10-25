@@ -2839,8 +2839,8 @@ fn update_dock_interaction(
             if let Ok(region) = DOCK_RECT.try_lock() {
                 if let Some(r) = *region {
                     let scale = dock_win.scale_factor().unwrap_or(1.0);
-                    let pad_x = (5.0 * scale) as i32;
-                    let pad_y_top = (8.0 * scale) as i32;
+                    let pad_x = (30.0 * scale) as i32;
+                    let pad_y_top = (24.0 * scale) as i32;
                     let pad_y_bottom = (5.0 * scale) as i32;
                     // Hysteresis keeps the dock interactive a little past
                     // its bounds once grabbed, so removing the edge-forced

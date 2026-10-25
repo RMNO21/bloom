@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, memo } from "rea
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { ChevronUp, ChevronLeft } from "lucide-react";
 import "./Dock.css";
 import { EdgeSurface } from "./components/EdgeSurface";
 import { initTheme } from "./theme";
@@ -234,6 +235,8 @@ const Dock = memo(function Dock() {
 		parseFloat(localStorage.getItem("bloom-scale") || "1.0")
 	);
 	const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+	const [showSystemTray, setShowSystemTray] = useState(false);
+	const [allTrayApps, setAllTrayApps] = useState<TrayApp[]>([]);
 
 	useEffect(() => {
 		const onResize = () => setViewportWidth(window.innerWidth);
@@ -335,7 +338,7 @@ const Dock = memo(function Dock() {
 					rect: {
 						x: Math.round(rect.x) - (hasPreview ? 500 : 0),
 						y: Math.round(rect.y) - (hasPreview ? 320 : 0),
-						width: Math.round(rect.width) + (hasPreview ? 1000 : 0),
+						width: Math.round(rect.width) + 30 + (hasPreview ? 1000 : 0),
 						height: Math.round(rect.height) + (hasPreview ? 320 : 0)
 					}
 				}).catch(() => {});
@@ -518,6 +521,10 @@ const Dock = memo(function Dock() {
 			// Ignore responses that arrive out of order: an older poll must never
 			// overwrite a newer state, which would resurrect closed apps.
 			if (stopped || seq !== pollSeq) return;
+			setAllTrayApps(tray || []);
+			if (tray) {
+				tray.forEach((t) => fetchIcon(t.path, t.name, t.window_handles?.[0]));
+			}
 			const selected = selectDockTrayApps(windows, tray, observedTrayPathsRef.current, (app) =>
 				pinnedApps.some((pinned) =>
 					isSameApp(pinned, {
@@ -1285,7 +1292,9 @@ const Dock = memo(function Dock() {
 								transition={{ duration: 0.15 }}
 								className="dock-reorder-container"
 							>
-								{startItem && (
+								{!showSystemTray ? (
+									<>
+										{startItem && (
 									<motion.div
 										initial={{ opacity: 0, scale: 0 }}
 										animate={{ opacity: 1, scale: 1 }}
@@ -1711,6 +1720,27 @@ const Dock = memo(function Dock() {
 									</motion.div>
 								))}
 
+								{/* System Tray Toggle Button */}
+								<motion.div
+									layout
+									className="dock-icon-wrapper"
+									onContextMenu={(e) => e.preventDefault()}
+									onClick={(e) => {
+										e.stopPropagation();
+										setShowSystemTray(true);
+									}}
+								>
+									<div className="tooltip">System Tray</div>
+									<motion.div
+										className="dock-icon"
+										variants={iconVariants}
+										whileHover="hover"
+										whileTap="tap"
+									>
+										<ChevronUp size={18} strokeWidth={2.4} />
+									</motion.div>
+								</motion.div>
+
 								{dockExtrasPosition === "right" && dockExtras.length > 0 && (
 									<>
 										<div
@@ -1721,7 +1751,123 @@ const Dock = memo(function Dock() {
 										{dockExtras.map((extra) => renderExtra(extra))}
 									</>
 								)}
+							</>
+						) : (
+							<motion.div
+								key="dock-system-tray-row"
+								initial={{ opacity: 0, x: 20 }}
+								animate={{ opacity: 1, x: 0 }}
+								exit={{ opacity: 0, x: -20 }}
+								transition={{ duration: 0.15 }}
+								style={{ display: "flex", alignItems: "center", gap: 12 }}
+							>
+								{/* Return button */}
+								<motion.div
+									layout
+									className="dock-icon-wrapper"
+									onClick={(e) => {
+										e.stopPropagation();
+										setShowSystemTray(false);
+									}}
+								>
+									<div className="tooltip">Back to Apps</div>
+									<motion.div
+										className="dock-icon"
+										variants={iconVariants}
+										whileHover="hover"
+										whileTap="tap"
+										style={{ background: "rgba(255, 255, 255, 0.15)" }}
+									>
+										<ChevronLeft size={18} strokeWidth={2.4} />
+									</motion.div>
+								</motion.div>
+
+								<div
+									className="dock-app-divider"
+									role="separator"
+									aria-orientation="vertical"
+								/>
+
+								{/* Tray items */}
+								{allTrayApps.length === 0 ? (
+									<span style={{ fontSize: 12, opacity: 0.6, padding: "0 8px" }}>
+										No system tray items
+									</span>
+								) : (
+									allTrayApps.map((trayApp, idx) => {
+										const icon =
+											customIcons[trayApp.path] ||
+											iconsRef.current[trayApp.path] ||
+											null;
+										const isBloomOrSettings =
+											trayApp.name.toLowerCase() === "settings" ||
+											trayApp.name.toLowerCase() === "bloom" ||
+											trayApp.path.toLowerCase().includes("bloom.exe");
+										return (
+											<motion.div
+												key={`${trayApp.path}-${trayApp.tray_ids?.[0] || idx}`}
+												layout
+												initial={{ opacity: 0, scale: 0 }}
+												animate={{
+													opacity: 1,
+													scale: 1,
+													transition: {
+														opacity: { duration: 0.15, delay: idx * 0.02 },
+														scale: { type: "spring", stiffness: 400, damping: 25, delay: idx * 0.02 }
+													}
+												}}
+												className="dock-icon-wrapper"
+												onMouseEnter={() => setHoveredApp(`tray-${idx}`)}
+												onMouseLeave={() => {
+													setHoveredApp(null);
+													setPressedApp(null);
+												}}
+												onPointerDown={() => setPressedApp(`tray-${idx}`)}
+												onPointerUp={() => setPressedApp(null)}
+												onClick={(e) => {
+													e.stopPropagation();
+													if (trayApp.tray_ids?.[0]) {
+														invoke("activate_tray_icon", { trayId: trayApp.tray_ids[0] }).catch(console.error);
+													}
+												}}
+												onContextMenu={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													if (trayApp.tray_ids?.[0]) {
+														invoke("show_tray_context_menu", { trayId: trayApp.tray_ids[0] }).catch(console.error);
+													}
+												}}
+											>
+												<div className="tooltip">{trayApp.name || "System Tray"}</div>
+												<motion.div
+													className="dock-icon"
+													variants={iconVariants}
+													animate={
+														pressedApp === `tray-${idx}`
+															? "tap"
+															: hoveredApp === `tray-${idx}`
+																? "hover"
+																: "idle"
+													}
+												>
+													{icon ? (
+														<img
+															src={icon}
+															alt={trayApp.name}
+															className={isBloomOrSettings ? "bloom-icon-img" : ""}
+															draggable={false}
+														/>
+													) : (
+														<div className="fallback-icon">{(trayApp.name || "T")[0]}</div>
+													)}
+												</motion.div>
+											</motion.div>
+										);
+									})
+								)}
 							</motion.div>
+						)}
+					</motion.div>
 						)}
 					</AnimatePresence>
 				</motion.div>

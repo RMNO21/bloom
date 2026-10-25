@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Plus, Trash2, ListTodo, Timer } from "lucide-react";
 import "./TodoList.css";
@@ -78,6 +79,11 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 
 	const remainingCount = todos.filter((t) => !t.completed).length;
 	const completedCount = todos.length - remainingCount;
+	const todayFormatted = new Date().toLocaleDateString("en-US", {
+		weekday: "short",
+		month: "short",
+		day: "numeric"
+	});
 
 	return (
 		<div className="todo-container">
@@ -88,6 +94,9 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 					<span className="todo-title">Tasks</span>
 					<span className="todo-badge">
 						{remainingCount === 0 ? "All done" : `${remainingCount} left`}
+					</span>
+					<span className="todo-date-badge">
+						{todayFormatted}
 					</span>
 				</div>
 
@@ -122,8 +131,14 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 					placeholder="Add a new task..."
 					value={inputText}
 					onChange={(e) => setInputText(e.target.value)}
-					onFocus={() => onPinNotch?.(true)}
-					onBlur={() => onPinNotch?.(false)}
+					onFocus={() => {
+						onPinNotch?.(true);
+						invoke("focus_notch_input", { focus: true }).catch(() => {});
+					}}
+					onBlur={() => {
+						onPinNotch?.(false);
+						invoke("focus_notch_input", { focus: false }).catch(() => {});
+					}}
 					onKeyDown={(e) => {
 						if (e.key === "Enter") handleAddTodo();
 					}}

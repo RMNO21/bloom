@@ -1514,6 +1514,17 @@ function App() {
 		);
 	};
 
+	// Called by views that take typed input; see releaseNotchHover.
+	const setNotchPinned = useCallback((pinned: boolean) => {
+		notchPinnedRef.current = pinned;
+		if (!pinned && releaseDeferredRef.current) {
+			releaseDeferredRef.current = false;
+			releaseNotchHover();
+		}
+		// releaseNotchHover only touches refs and state setters.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	const clearShelfCollapse = () => {
 		if (shelfCollapseTimer.current !== null) {
 			window.clearTimeout(shelfCollapseTimer.current);
@@ -1874,10 +1885,15 @@ function App() {
 
 	useEffect(() => {
 		if (isEditingTimer) {
+			setNotchPinned(true);
+			invoke("focus_notch_input", { focus: true }).catch(() => {});
 			timerInputRef.current?.focus();
 			timerInputRef.current?.select();
+		} else {
+			setNotchPinned(false);
+			invoke("focus_notch_input", { focus: false }).catch(() => {});
 		}
-	}, [isEditingTimer]);
+	}, [isEditingTimer, setNotchPinned]);
 
 	const timerEditValid = timerDigitsToSeconds(timerEditDigits) !== null;
 
@@ -2001,17 +2017,6 @@ function App() {
 	};
 	rememberPanelRef.current = rememberPanel;
 
-	// Called by views that take typed input; see releaseNotchHover.
-	const setNotchPinned = useCallback((pinned: boolean) => {
-		notchPinnedRef.current = pinned;
-		if (!pinned && releaseDeferredRef.current) {
-			releaseDeferredRef.current = false;
-			releaseNotchHover();
-		}
-		// releaseNotchHover only touches refs and state setters.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
-
 	// In peek mode, briefly show the notch when a new track starts or playback
 	// resumes. The notch itself never switches views for media; the collapsed
 	// pill follows the live-activity rule below.
@@ -2061,6 +2066,7 @@ function App() {
 				now.toLocaleTimeString([], {
 					hour: "2-digit",
 					minute: "2-digit",
+					second: isOpen ? "2-digit" : undefined,
 					hour12: !timeFormat24h
 				})
 			);
@@ -2072,7 +2078,7 @@ function App() {
 		return () => {
 			clearInterval(interval);
 		};
-	}, [timeFormat24h]);
+	}, [timeFormat24h, isOpen]);
 
 	// Battery API
 	useEffect(() => {
@@ -2565,6 +2571,8 @@ function App() {
 			openNotch("calendar");
 		} else if (bloomMode === "calendar") {
 			setIsOpen(false);
+			setBloomMode(restingModeRef.current);
+			invoke("focus_notch_input", { focus: false }).catch(() => {});
 		} else {
 			setBloomMode("calendar");
 		}
@@ -2724,14 +2732,14 @@ function App() {
 	// Calculate width dynamically based on enabled features
 	const getDynamicWidth = () => {
 		if (bloomMode === "announcement" && announcement && !announcementDismissed) return 380;
-		if (isCalendarMode) return isOpen ? 480 : 140 - clock24hTrim;
+		if (isCalendarMode && isOpen) return 480;
 		if (bloomMode === "shelf") return 380;
 		if (bloomMode === "command-center" && isOpen) return 350;
 		if (bloomMode === "wifi" || bloomMode === "bluetooth") return 350;
 		if (showMusicOnStatusHover) {
 			return 170 + (settingsVisualizerEnabled ? 30 : 0);
 		}
-		if (bloomMode === "status" && isHovered) {
+		if (!isOpen && isHovered) {
 			const totalWidgets = statusWidgets.left.length + statusWidgets.right.length;
 			return Math.max(Math.min(200 + totalWidgets * 50, 380) - clock24hTrim, statusFitWidth);
 		}
@@ -2889,6 +2897,8 @@ function App() {
 							openNotch(openingPanel());
 						} else {
 							setIsOpen(false);
+							setBloomMode(restingModeRef.current);
+							invoke("focus_notch_input", { focus: false }).catch(() => {});
 						}
 					}}
 					onHoverStart={() => {
@@ -3331,7 +3341,7 @@ function App() {
 																</AnimatePresence>
 																<div className="time-flip-container" onClick={toggleCalendarMode}>
 																	<AnimatePresence initial={false}>
-																		{timerSeconds > 0 || isTimerFinished ? (
+																		{!isOpen && (timerSeconds > 0 || isTimerFinished) ? (
 																			<motion.span
 																				key="timer"
 																				className={`time compact-timer ${isTimerFinished ? "timer-finished" : ""}`}

@@ -43,6 +43,16 @@
 	color: rgba(255, 255, 255, 0.75);
 }
 
+.todo-date-badge {
+	font-size: 10px;
+	font-weight: 500;
+	padding: 1px 7px;
+	border-radius: 10px;
+	background: rgba(56, 189, 248, 0.14);
+	color: #38bdf8;
+	letter-spacing: 0.1px;
+}
+
 .todo-header-actions {
 	display: flex;
 	align-items: center;

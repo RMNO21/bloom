@@ -2196,6 +2196,32 @@ pub fn hide_native_osd() {
 }
 
 #[tauri::command]
+pub fn focus_notch_input(app: AppHandle, focus: bool) {
+    if let Some(win) = app.get_webview_window("main") {
+        if let Ok(hwnd) = win.hwnd() {
+            unsafe {
+                use windows::Win32::UI::WindowsAndMessaging::{
+                    GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+                    SetForegroundWindow,
+                };
+                let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
+                if focus {
+                    let new_ex = ex & !(WS_EX_NOACTIVATE.0 as usize);
+                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex as isize);
+                    let _ = SetForegroundWindow(hwnd);
+                } else {
+                    let new_ex = ex | (WS_EX_NOACTIVATE.0 as usize);
+                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex as isize);
+                }
+            }
+        }
+        if focus {
+            let _ = win.set_focus();
+        }
+    }
+}
+
+#[tauri::command]
 pub fn open_settings_window(app: AppHandle) {
     if let Some(win) = app.get_webview_window("settings") {
         let _ = win.show();

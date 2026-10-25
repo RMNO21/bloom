@@ -113,6 +113,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             hide_native_osd,
             open_settings_window,
+            focus_notch_input,
             open_wifi_settings,
             open_sound_settings,
             open_notification_center,
