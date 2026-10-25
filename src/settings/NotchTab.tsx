@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
 	PanelTop,
 	Calendar,
@@ -23,6 +24,8 @@ interface NotchTabProps {
 	handleNotchEdgeDelayChange: (val: number) => void;
 	calendarEnabled: boolean;
 	toggleCalendar: () => void;
+	timerPresets: number[];
+	updateTimerPresets: (presets: number[]) => void;
 	notchRememberPanel: boolean;
 	toggleNotchRememberPanel: () => void;
 	notchDefaultPanel: "calendar" | "command-center";
@@ -68,6 +71,8 @@ export function NotchTab({
 	handleNotchEdgeDelayChange,
 	calendarEnabled,
 	toggleCalendar,
+	timerPresets,
+	updateTimerPresets,
 	notchRememberPanel,
 	toggleNotchRememberPanel,
 	notchDefaultPanel,
@@ -100,6 +105,37 @@ export function NotchTab({
 	statusWidgets,
 	handleWidgetsChange
 }: NotchTabProps) {
+	const [presetsInput, setPresetsInput] = useState(() => (timerPresets || [5, 15, 25, 50]).join(", "));
+
+	useEffect(() => {
+		setPresetsInput((timerPresets || [5, 15, 25, 50]).join(", "));
+	}, [timerPresets]);
+
+	const handlePresetsChange = (val: string) => {
+		setPresetsInput(val);
+		const nums = val
+			.split(/[\s,]+/)
+			.map((s) => parseFloat(s.trim()))
+			.filter((n) => !isNaN(n) && n > 0 && n <= 720);
+		if (nums.length > 0) {
+			updateTimerPresets(nums);
+		}
+	};
+
+	const handlePresetsBlur = () => {
+		const nums = presetsInput
+			.split(/[\s,]+/)
+			.map((s) => parseFloat(s.trim()))
+			.filter((n) => !isNaN(n) && n > 0 && n <= 720);
+		if (nums.length > 0) {
+			setPresetsInput(nums.join(", "));
+			updateTimerPresets(nums);
+		} else {
+			setPresetsInput("5, 15, 25, 50");
+			updateTimerPresets([5, 15, 25, 50]);
+		}
+	};
+
 	return (
 		<>
 			<div className="setting-group-label">Notch</div>
@@ -172,16 +208,35 @@ export function NotchTab({
 				</SettingRow>
 
 				{calendarEnabled && (
-					<SettingRow
-						icon={BellRing}
-						label="Timer Sound"
-						desc="Play a chime when the timer finishes"
-					>
-						<label className="toggle-switch">
-							<input type="checkbox" checked={timerSoundEnabled} onChange={toggleTimerSound} />
-							<span className="slider"></span>
-						</label>
-					</SettingRow>
+					<>
+						<SettingRow
+							icon={Timer}
+							label="Timer Presets"
+							desc="Quick durations in minutes (comma separated, e.g. 5, 15, 25, 50)"
+						>
+							<div className="timer-presets-row">
+								<input
+									type="text"
+									className="timer-presets-input"
+									value={presetsInput}
+									onChange={(e) => handlePresetsChange(e.target.value)}
+									onBlur={handlePresetsBlur}
+									placeholder="5, 15, 25, 50"
+								/>
+							</div>
+						</SettingRow>
+
+						<SettingRow
+							icon={BellRing}
+							label="Timer Sound"
+							desc="Play a chime when the timer finishes"
+						>
+							<label className="toggle-switch">
+								<input type="checkbox" checked={timerSoundEnabled} onChange={toggleTimerSound} />
+								<span className="slider"></span>
+							</label>
+						</SettingRow>
+					</>
 				)}
 
 				<SettingRow icon={Music} label="Music Mode" desc="Interactive live music widget">

@@ -144,6 +144,7 @@ fn main() {
             set_dock_hovered,
             set_notch_hovered,
             set_notch_visible,
+            set_notch_is_open,
             setup_shelf_drop,
             shelf_thumbnail,
             shelf_drag_icon,

@@ -620,6 +620,35 @@ input:checked + .slider:before {
 	}
 }
 
+.timer-presets-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.timer-presets-input {
+	width: 140px;
+	background: var(--bloom-group-bg, rgba(255, 255, 255, 0.08));
+	border: 1px solid var(--bloom-border, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	padding: 5px 10px;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--bloom-text, #fff);
+	text-align: right;
+	outline: none;
+	transition: all 0.2s ease;
+}
+
+.timer-presets-input:focus {
+	border-color: rgba(255, 255, 255, 0.25);
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.timer-presets-input::placeholder {
+	color: var(--bloom-text-muted, rgba(255, 255, 255, 0.3));
+}
+
 .manual-city-input {
 	position: relative;
 	margin: 4px 14px 4px 54px;

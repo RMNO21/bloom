@@ -43,6 +43,11 @@ pub async fn set_notch_visible(visible: bool) {
 }
 
 #[tauri::command]
+pub fn set_notch_is_open(open: bool) {
+    crate::state::NOTCH_IS_OPEN.store(open, Ordering::Relaxed);
+}
+
+#[tauri::command]
 pub fn setup_shelf_drop(app: AppHandle) {
     let first = app.clone();
     let _ = app.run_on_main_thread(move || crate::shelf::setup(&first));

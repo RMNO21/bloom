@@ -29,6 +29,19 @@ export function useSettings() {
 	const [autostart, setAutostart] = useState(false);
 	const [weatherEnabled, setWeatherEnabled] = useState(true);
 	const [calendarEnabled, setCalendarEnabled] = useState(true);
+	const [timerPresets, setTimerPresets] = useState<number[]>(() => {
+		try {
+			const saved = localStorage.getItem("bloom-timer-presets");
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					const nums = parsed.map(Number).filter((n) => !isNaN(n) && n > 0);
+					if (nums.length > 0) return nums;
+				}
+			}
+		} catch {}
+		return [5, 15, 25, 50];
+	});
 	const [timerSoundEnabled, setTimerSoundEnabled] = useState(
 		() => localStorage.getItem("bloom-timer-sound-enabled") !== "false"
 	);
@@ -191,6 +204,16 @@ export function useSettings() {
 
 			apply(getVal("bloom-weather-enabled"), setWeatherEnabled, readBool);
 			apply(getVal("bloom-calendar-enabled"), setCalendarEnabled, readBool);
+			try {
+				const val = getVal("bloom-timer-presets");
+				if (val) {
+					const parsed = JSON.parse(val);
+					if (Array.isArray(parsed) && parsed.length > 0) {
+						const nums = parsed.map(Number).filter((n: any) => !isNaN(n) && n > 0);
+						if (nums.length > 0) setTimerPresets(nums);
+					}
+				}
+			} catch {}
 			apply(getVal("bloom-timer-sound-enabled"), setTimerSoundEnabled, readBool);
 			apply(getVal("bloom-music-mode-enabled"), setMusicModeEnabled, readBool);
 			apply(getVal("bloom-notch-remember-panel") ?? getVal("bloom-notch-click-to-open"),
@@ -358,6 +381,15 @@ export function useSettings() {
 		"bloom-dock-extras-custom-folders": setDockExtrasCustomFolders,
 		"bloom-weather-enabled": setWeatherEnabled,
 		"bloom-calendar-enabled": setCalendarEnabled,
+		"bloom-timer-presets": (v: unknown) => {
+			try {
+				const parsed = typeof v === "string" ? JSON.parse(v) : v;
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					const nums = parsed.map(Number).filter((n) => !isNaN(n) && n > 0);
+					if (nums.length > 0) setTimerPresets(nums);
+				}
+			} catch {}
+		},
 		"bloom-timer-sound-enabled": setTimerSoundEnabled,
 		"bloom-music-mode-enabled": setMusicModeEnabled,
 		"bloom-notch-remember-panel": setNotchRememberPanel,
@@ -524,6 +556,11 @@ export function useSettings() {
 		const next = !timerSoundEnabled;
 		setTimerSoundEnabled(next);
 		saveSetting("bloom-timer-sound-enabled", String(next));
+	};
+
+	const updateTimerPresets = (presets: number[]) => {
+		setTimerPresets(presets);
+		saveSetting("bloom-timer-presets", JSON.stringify(presets));
 	};
 
 	const toggleMusicMode = () => {
@@ -948,6 +985,8 @@ export function useSettings() {
 		handleNotchEdgeDelayChange,
 		calendarEnabled,
 		toggleCalendar,
+		timerPresets,
+		updateTimerPresets,
 		timerSoundEnabled,
 		toggleTimerSound,
 		musicModeEnabled,

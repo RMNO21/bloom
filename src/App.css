@@ -1057,13 +1057,14 @@ img {
 }
 
 .timer-preset-group {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
+	display: flex;
 	gap: 4px;
 	width: 100%;
 }
 
 .timer-preset-segment {
+	flex: 1;
+	min-width: 0;
 	padding: 6px 0;
 	border: none;
 	border-radius: 7px;
@@ -1076,6 +1077,7 @@ img {
 	transition:
 		background 0.2s ease,
 		opacity 0.2s ease;
+	text-align: center;
 }
 
 .timer-preset-segment:hover {

@@ -789,6 +789,12 @@ function App() {
 	}, [isVisible, isHidden, windowLabel]);
 
 	useEffect(() => {
+		if (windowLabel === "main") {
+			invoke("set_notch_is_open", { open: isOpen }).catch(() => {});
+		}
+	}, [isOpen, windowLabel]);
+
+	useEffect(() => {
 		const updateRect = () => {
 			if (bloomRef.current && windowLabel === "main") {
 				// Activity bubbles sit beside the pill and must stay clickable too.
@@ -1108,12 +1114,22 @@ function App() {
 			openNotch(openingPanel());
 		});
 
+		const unlistenNotchCollapseOutside = listen("notch-collapse-outside", () => {
+			if (isOpenRef.current) {
+				notchPinnedRef.current = false;
+				releaseDeferredRef.current = false;
+				releaseNotchHover();
+				invoke("focus_notch_input", { focus: false }).catch(() => {});
+			}
+		});
+
 		return () => {
 			unlistenVisibility.then((f) => f());
 			unlistenNotchOverlap.then((f) => f());
 			unlistenNotchEdgeHover.then((f) => f());
 			unlistenNotchPointerLeft.then((f) => f());
 			unlistenBloomOpenNotch.then((f) => f());
+			unlistenNotchCollapseOutside.then((f) => f());
 			document.removeEventListener("contextmenu", preventContext);
 		};
 	}, [windowLabel]);
@@ -1124,6 +1140,15 @@ function App() {
 			"bloom-weather-enabled": setSettingsWeatherEnabled,
 			"bloom-calendar-enabled": setSettingsCalendarEnabled,
 			"bloom-timer-sound-enabled": setSettingsTimerSoundEnabled,
+			"bloom-timer-presets": (v: unknown) => {
+				try {
+					const parsed = typeof v === "string" ? JSON.parse(v) : v;
+					if (Array.isArray(parsed) && parsed.length > 0) {
+						const nums = parsed.map(Number).filter((n) => !isNaN(n) && n > 0);
+						if (nums.length > 0) setTimerPresets(nums);
+					}
+				} catch {}
+			},
 			"bloom-music-mode-enabled": setSettingsMusicModeEnabled,
 			"bloom-notch-remember-panel": (v: unknown) => {
 				const val = typeof v === "boolean" ? v : v !== "false";
@@ -1858,6 +1883,19 @@ function App() {
 	const [isTimerFinished, setIsTimerFinished] = useState(false);
 	const [isEditingTimer, setIsEditingTimer] = useState(false);
 	const [timerEditDigits, setTimerEditDigits] = useState("");
+	const [timerPresets, setTimerPresets] = useState<number[]>(() => {
+		try {
+			const saved = localStorage.getItem("bloom-timer-presets");
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					const nums = parsed.map(Number).filter((n) => !isNaN(n) && n > 0);
+					if (nums.length > 0) return nums;
+				}
+			}
+		} catch {}
+		return [5, 15, 25, 50];
+	});
 	const [lastDurationSeconds, setLastDurationSeconds] = useState(() => {
 		const stored = parseInt(localStorage.getItem("bloom-timer-last-duration") || "", 10);
 		return Number.isFinite(stored) && stored > 0 ? stored : 25 * 60;
@@ -4034,7 +4072,7 @@ function App() {
 														</div>
 
 														<div className="timer-preset-group">
-															{[5, 15, 25, 50].map((mins) => (
+															{timerPresets.map((mins) => (
 																<button
 																	key={mins}
 																	onClick={() => startTimer(mins * 60)}

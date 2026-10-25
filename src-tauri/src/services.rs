@@ -2077,6 +2077,7 @@ static MH_RIGHT_EXPIRY_MS: AtomicI64 = AtomicI64::new(0);
 static MH_LAST_MONITOR_UPDATE_MS: AtomicI64 = AtomicI64::new(0);
 static MH_CACHED_MON_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 static MH_CACHED_MON_SIZE: Mutex<Option<(u32, u32)>> = Mutex::new(None);
+static MH_CACHED_SCALE: AtomicU32 = AtomicU32::new(100);
 static CAPTURE_UI_ACTIVE: AtomicBool = AtomicBool::new(false);
 static CAPTURE_RECHECK: AtomicBool = AtomicBool::new(true);
 static CAPTURE_LAST_SCAN_MS: AtomicI64 = AtomicI64::new(0);
@@ -2571,6 +2572,7 @@ fn update_main_interaction(
 
     let in_notch_hover = NOTCH_IS_HOVERED.load(Ordering::Relaxed);
     let scale = main_win.scale_factor().unwrap_or(1.0);
+    MH_CACHED_SCALE.store((scale * 100.0) as u32, Ordering::Relaxed);
     // The top-edge reveal exists only to bring a hidden notch on screen: it is
     // dwell-gated, and fixed mode (always visible) skips it entirely. This is
     // about showing the notch — the hit-testing continuity below is separate
@@ -2839,6 +2841,7 @@ fn update_dock_interaction(
             if let Ok(region) = DOCK_RECT.try_lock() {
                 if let Some(r) = *region {
                     let scale = dock_win.scale_factor().unwrap_or(1.0);
+                    MH_CACHED_SCALE.store((scale * 100.0) as u32, Ordering::Relaxed);
                     let pad_x = (30.0 * scale) as i32;
                     let pad_x_right = (80.0 * scale) as i32;
                     let pad_y_top = (40.0 * scale) as i32;
@@ -2871,6 +2874,7 @@ fn update_dock_interaction(
                 if let Ok(rect) = MENU_RECT.try_lock() {
                     if let Some(r) = *rect {
                         let scale = dock_win.scale_factor().unwrap_or(1.0);
+                    MH_CACHED_SCALE.store((scale * 100.0) as u32, Ordering::Relaxed);
                         let rx = win_pos.x + (r.x as f64 * scale) as i32 - (5.0 * scale) as i32;
                         let ry = win_pos.y + (r.y as f64 * scale) as i32 - (5.0 * scale) as i32;
                         let rw = (r.width as f64 * scale) as i32 + (10.0 * scale) as i32;
@@ -2996,7 +3000,95 @@ unsafe extern "system" fn mouse_hook_proc(
             }
         }
     }
+    // Notch closes when you click outside it and outside the dock.
+    if code >= 0
+        && (wparam.0 == WM_LBUTTONDOWN as usize || wparam.0 == WM_RBUTTONDOWN as usize)
+        && NOTCH_IS_OPEN.load(Ordering::Relaxed)
+    {
+        let point = (*(lparam.0 as *const MSLLHOOKSTRUCT)).pt;
+        if !notch_takes_press(point) && !point_in_dock(point) {
+            NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
+            if let Some(app) = WINDOW_CHANGE_APP_HANDLE.get().cloned() {
+                std::thread::spawn(move || {
+                    let _ = app.emit("notch-collapse-outside", ());
+                });
+            }
+        }
+    }
     CallNextHookEx(None, code, wparam, lparam)
+}
+
+/// Whether a screen point is within the notch bounds (expanded or resting).
+unsafe fn notch_takes_press(point: windows::Win32::Foundation::POINT) -> bool {
+    let main_rect_val = MAIN_WINDOW_RECT.lock().ok().and_then(|g| *g);
+    if let Some((win_pos, _)) = main_rect_val {
+        if let Ok(region) = NOTCH_RECT.lock() {
+            if let Some(r) = *region {
+                let scale = MH_CACHED_SCALE.load(Ordering::Relaxed) as f64 / 100.0;
+                let scale = if scale <= 0.0 { 1.0 } else { scale };
+                let pad_x = (30.0 * scale) as i32;
+                let pad_y_bottom = (20.0 * scale) as i32;
+                let rx = win_pos.x + (r.x as f64 * scale) as i32 - pad_x;
+                let rw = (r.width as f64 * scale) as i32 + (pad_x * 2);
+                let ry_top = win_pos.y.min(0);
+                let ry_bottom = win_pos.y + (r.height as f64 * scale) as i32 + pad_y_bottom;
+
+                if point.x >= rx && point.x <= (rx + rw) && point.y >= ry_top && point.y <= ry_bottom {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Whether a screen point is within the dock or dock menu.
+unsafe fn point_in_dock(point: windows::Win32::Foundation::POINT) -> bool {
+    if dock_takes_press(point) {
+        return true;
+    }
+    let dock_rect_val = DOCK_WINDOW_RECT.lock().ok().and_then(|g| *g);
+    if let Some((win_pos, win_size)) = dock_rect_val {
+        if point.x >= win_pos.x
+            && point.x <= (win_pos.x + win_size.width as i32)
+            && point.y >= win_pos.y
+            && point.y <= (win_pos.y + win_size.height as i32)
+        {
+            if let Ok(region) = DOCK_RECT.lock() {
+                if let Some(r) = *region {
+                    let scale = MH_CACHED_SCALE.load(Ordering::Relaxed) as f64 / 100.0;
+                    let scale = if scale <= 0.0 { 1.0 } else { scale };
+                    let pad_x = (30.0 * scale) as i32;
+                    let pad_x_right = (80.0 * scale) as i32;
+                    let pad_y_top = (40.0 * scale) as i32;
+                    let pad_y_bottom = (40.0 * scale) as i32;
+                    let rx = win_pos.x + (r.x as f64 * scale) as i32 - pad_x;
+                    let ry = win_pos.y + (r.y as f64 * scale) as i32 - pad_y_top;
+                    let rw = (r.width as f64 * scale) as i32 + pad_x + pad_x_right;
+                    let rh = (r.height as f64 * scale) as i32 + pad_y_top + pad_y_bottom;
+                    if point.x >= rx && point.x <= (rx + rw) && point.y >= ry && point.y <= (ry + rh) {
+                        return true;
+                    }
+                }
+            }
+            if MENU_IS_OPEN.load(Ordering::Relaxed) {
+                if let Ok(rect) = MENU_RECT.lock() {
+                    if let Some(r) = *rect {
+                        let scale = MH_CACHED_SCALE.load(Ordering::Relaxed) as f64 / 100.0;
+                        let scale = if scale <= 0.0 { 1.0 } else { scale };
+                        let rx = win_pos.x + (r.x as f64 * scale) as i32 - (10.0 * scale) as i32;
+                        let ry = win_pos.y + (r.y as f64 * scale) as i32 - (10.0 * scale) as i32;
+                        let rw = (r.width as f64 * scale) as i32 + (20.0 * scale) as i32;
+                        let rh = (r.height as f64 * scale) as i32 + (20.0 * scale) as i32;
+                        if point.x >= rx && point.x <= (rx + rw) && point.y >= ry && point.y <= (ry + rh) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Whether the dock window takes a press at `point`: it isn't click-through
