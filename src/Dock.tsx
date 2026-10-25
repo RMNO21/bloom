@@ -883,7 +883,7 @@ const Dock = memo(function Dock() {
 		if (bar && isExpanded && !isHidden && isVisible) {
 			dockBandHeightRef.current = Math.max(dockBandHeightRef.current, bar.height);
 		}
-		const band = (dockBandHeightRef.current || 72 * scale) + 64 * scale;
+		const band = (dockBandHeightRef.current || 72 * scale) + 64 * scale + 24 * scale;
 		const wanted: RegionRect[] = [
 			{ x: 0, y: window.innerHeight - band, width: window.innerWidth, height: band }
 		];

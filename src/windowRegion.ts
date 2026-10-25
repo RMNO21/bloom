@@ -53,9 +53,9 @@ export function notchPillBox(
 	const width = targetWidth * scale;
 	return {
 		x: (windowWidth - width) / 2 - pad * scale,
-		y: targetY * scale,
+		y: Math.max(0, targetY * scale - pad * scale),
 		width: width + pad * 2 * scale,
-		height: targetHeight * scale + pad * scale
+		height: targetHeight * scale + pad * 2 * scale
 	};
 }
 

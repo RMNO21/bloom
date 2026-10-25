@@ -33,14 +33,13 @@ fn physical_rects(rects: &[IntRect], scale: f64) -> Vec<RECT> {
 }
 
 /// Sets the calling window's region to the union of `rects` (CSS pixels of
-/// the window). An empty list leaves the window with an empty region: it draws
-/// nothing and takes no input until the next call.
+/// the window). An empty list removes the region so the window renders its full
+/// surface without restriction.
 #[tauri::command]
 pub fn set_window_region(window: Window, rects: Vec<IntRect>) {
     let Ok(hwnd) = window.hwnd() else {
         return;
     };
-    let scale = window.scale_factor().unwrap_or(1.0);
     // A region on a window that isn't layered turns its transparent pixels
     // opaque (see set_click_through). Make sure it's layered before the region
     // lands, keeping whatever click-through state it has.
@@ -51,9 +50,40 @@ pub fn set_window_region(window: Window, rects: Vec<IntRect>) {
         GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TRANSPARENT.0 != 0
     };
     crate::utils::set_click_through(hwnd, click_through);
+
+    if rects.is_empty() {
+        unsafe {
+            let _ = SetWindowRgn(hwnd, None, true);
+        }
+        return;
+    }
+
+    let scale = window.scale_factor().unwrap_or(1.0);
     unsafe {
+        use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
+        let mut client = RECT::default();
+        let has_client =
+            GetClientRect(hwnd, &mut client).is_ok() && client.right > 0 && client.bottom > 0;
+
         let region = CreateRectRgn(0, 0, 0, 0);
-        for rect in physical_rects(&rects, scale) {
+        for mut rect in physical_rects(&rects, scale) {
+            // Align boundary edges with physical client coordinates to prevent fractional
+            // DPI scaling differences between WebView2 and the Win32 window from clipping UI edges.
+            if has_client {
+                if rect.left <= 0 {
+                    rect.left = 0;
+                }
+                if rect.top <= 0 {
+                    rect.top = 0;
+                }
+                if rect.right >= client.right - 10 {
+                    rect.right = client.right;
+                }
+                if rect.bottom >= client.bottom - 10 {
+                    rect.bottom = client.bottom;
+                }
+            }
+
             let part = CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
             CombineRgn(Some(region), Some(region), Some(part), RGN_OR);
             let _ = DeleteObject(part.into());
