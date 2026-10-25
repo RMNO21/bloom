@@ -1104,7 +1104,7 @@ function App() {
 		});
 
 		const unlistenBloomOpenNotch = listen("bloom-open-notch", () => {
-			openNotch("calendar");
+			openNotch(openingPanel());
 		});
 
 		return () => {
@@ -1124,9 +1124,17 @@ function App() {
 			"bloom-calendar-enabled": setSettingsCalendarEnabled,
 			"bloom-timer-sound-enabled": setSettingsTimerSoundEnabled,
 			"bloom-music-mode-enabled": setSettingsMusicModeEnabled,
-			"bloom-notch-remember-panel": setRememberPanelEnabled,
-			"bloom-notch-default-panel": (v: unknown) =>
-				setDefaultPanel(asNotchPanel(v) ?? "calendar"),
+			"bloom-notch-remember-panel": (v: unknown) => {
+				const val = typeof v === "boolean" ? v : v !== "false";
+				setRememberPanelEnabled(val);
+				rememberPanelEnabledRef.current = val;
+				localStorage.setItem("bloom-notch-remember-panel", String(val));
+			},
+			"bloom-notch-default-panel": (v: unknown) => {
+				const p = asNotchPanel(v) ?? "command-center";
+				setDefaultPanel(p);
+				localStorage.setItem("bloom-notch-default-panel", p);
+			},
 			"bloom-shelf-persist": setShelfPersist,
 			"bloom-music-compact-notch": setSettingsMusicCompactNotch,
 			"bloom-notch-last-panel": (v: unknown) => setLastPanel(asNotchPanel(v)),
@@ -1807,7 +1815,9 @@ function App() {
 			: panels[(currentIndex + direction + panels.length) % panels.length];
 		setIsOpen(true);
 		setBloomMode(nextMode);
-		rememberPanel(nextMode);
+		if (rememberPanelEnabled) {
+			rememberPanel(nextMode);
+		}
 		return true;
 	};
 
@@ -1816,7 +1826,11 @@ function App() {
 		const panels = NOTCH_PANELS.filter(panelAvailable);
 		const index = panels.indexOf(bloomMode as NotchPanel);
 		if (index === -1 || panels.length < 2) return;
-		setBloomMode(panels[(index + direction + panels.length) % panels.length]);
+		const nextMode = panels[(index + direction + panels.length) % panels.length];
+		setBloomMode(nextMode);
+		if (rememberPanelEnabled) {
+			rememberPanel(nextMode);
+		}
 	};
 
 	// Timer state
@@ -2017,8 +2031,8 @@ function App() {
 	// A click opens the last-used panel when memory is enabled, otherwise the
 	// selected default. The controls panel is always available as a fallback.
 	const openingPanel = (): NotchPanel => {
-		const preferred = rememberPanelEnabled ? lastPanel ?? defaultPanel : defaultPanel;
-		return panelAvailable(preferred) ? preferred : "calendar";
+		const preferred = (rememberPanelEnabled ? lastPanel ?? defaultPanel : defaultPanel) || defaultPanel || "command-center";
+		return panelAvailable(preferred) ? preferred : "command-center";
 	};
 
 	// Expands the notch into a panel, or into an activity's own view.
@@ -2592,15 +2606,17 @@ function App() {
 			resetTimer();
 			return;
 		}
-		// The time is part of the notch: clicking it toggles the to-do list / calendar panel
+		// The time is part of the notch: clicking it toggles the notch open/closed
 		if (!isOpen) {
-			openNotch("calendar");
-		} else if (bloomMode === "calendar") {
+			openNotch(openingPanel());
+		} else {
+			const currentPanel = asNotchPanel(bloomMode);
+			if (currentPanel && rememberPanelEnabled) {
+				rememberPanel(currentPanel);
+			}
 			setIsOpen(false);
 			setBloomMode(restingModeRef.current);
 			invoke("focus_notch_input", { focus: false }).catch(() => {});
-		} else {
-			setBloomMode("calendar");
 		}
 	};
 
@@ -2928,6 +2944,10 @@ function App() {
 						if (!isOpen) {
 							openNotch(openingPanel());
 						} else {
+							const currentPanel = asNotchPanel(bloomMode);
+							if (currentPanel && rememberPanelEnabled) {
+								rememberPanel(currentPanel);
+							}
 							setIsOpen(false);
 							setBloomMode(restingModeRef.current);
 							invoke("focus_notch_input", { focus: false }).catch(() => {});
