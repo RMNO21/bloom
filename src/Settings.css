@@ -620,6 +620,148 @@ input:checked + .slider:before {
 	}
 }
 
+.timer-presets-manager {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 100%;
+	max-width: 280px;
+}
+
+.timer-presets-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	justify-content: flex-end;
+}
+
+.timer-preset-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 999px;
+	padding: 3px 8px 3px 10px;
+	font-size: 11px;
+	font-weight: 550;
+	color: var(--bloom-text, #fff);
+	transition: background 0.15s ease;
+}
+
+.timer-preset-chip:hover {
+	background: rgba(255, 255, 255, 0.16);
+}
+
+.preset-chip-num {
+	letter-spacing: -0.01em;
+}
+
+.preset-chip-remove {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	border: none;
+	border-radius: 50%;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.55);
+	cursor: pointer;
+	padding: 0;
+	transition: all 0.12s ease;
+}
+
+.preset-chip-remove:hover {
+	background: rgba(255, 255, 255, 0.2);
+	color: #fff;
+	transform: scale(1.1);
+}
+
+.timer-presets-add-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.timer-add-field-group {
+	display: flex;
+	align-items: center;
+	background: var(--bloom-group-bg, rgba(255, 255, 255, 0.08));
+	border: 1px solid var(--bloom-border, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	overflow: hidden;
+	transition: border-color 0.2s ease;
+}
+
+.timer-add-field-group:focus-within {
+	border-color: rgba(255, 255, 255, 0.25);
+}
+
+.timer-add-input {
+	width: 80px;
+	background: transparent;
+	border: none;
+	padding: 5px 8px;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--bloom-text, #fff);
+	outline: none;
+	text-align: right;
+}
+
+.timer-add-btn {
+	padding: 5px 9px;
+	border: none;
+	background: rgba(255, 255, 255, 0.1);
+	color: var(--bloom-text, #fff);
+	font-size: 10.5px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.timer-add-btn:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.22);
+}
+
+.timer-add-btn:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.timer-presets-reset-btn {
+	padding: 4px 8px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	background: transparent;
+	color: var(--bloom-text-muted, rgba(255, 255, 255, 0.6));
+	font-size: 10.5px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.timer-presets-reset-btn:hover {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+}
+
+.timer-presets-manual-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+	margin-top: 2px;
+}
+
+.timer-presets-manual-label {
+	font-size: 10px;
+	color: var(--bloom-text-muted, rgba(255, 255, 255, 0.45));
+}
+
 .timer-presets-row {
 	display: flex;
 	align-items: center;
@@ -627,11 +769,11 @@ input:checked + .slider:before {
 }
 
 .timer-presets-input {
-	width: 140px;
+	width: 130px;
 	background: var(--bloom-group-bg, rgba(255, 255, 255, 0.08));
 	border: 1px solid var(--bloom-border, rgba(255, 255, 255, 0.08));
 	border-radius: 6px;
-	padding: 5px 10px;
+	padding: 4px 8px;
 	font-size: 11px;
 	font-weight: 500;
 	color: var(--bloom-text, #fff);

@@ -643,7 +643,7 @@ unsafe extern "system" fn taskbar_event_proc(
     _dw_event_thread: u32,
     _dwms_event_time: u32,
 ) {
-    if NATIVE_TASKBAR_HIDDEN.load(Ordering::Relaxed) {
+    if dock_enabled() && !crate::state::TRAY_INTERACTION_ACTIVE.load(Ordering::Relaxed) {
         let mut class_name = [0u8; 256];
         let len = windows::Win32::UI::WindowsAndMessaging::GetClassNameA(hwnd, &mut class_name);
         let class_str = std::str::from_utf8(&class_name[..len as usize]).unwrap_or("");
@@ -651,6 +651,7 @@ unsafe extern "system" fn taskbar_event_proc(
         if class_str == "Shell_TrayWnd" || class_str == "Shell_SecondaryTrayWnd" {
             // Taskbar is trying to show or move: slap it back down.
             set_taskbar_visibility(false, false);
+            NATIVE_TASKBAR_HIDDEN.store(true, Ordering::Relaxed);
         }
     }
 }

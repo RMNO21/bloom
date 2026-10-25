@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
 	PanelTop,
 	Calendar,
@@ -28,8 +28,8 @@ interface NotchTabProps {
 	updateTimerPresets: (presets: number[]) => void;
 	notchRememberPanel: boolean;
 	toggleNotchRememberPanel: () => void;
-	notchDefaultPanel: "calendar" | "command-center";
-	changeNotchDefaultPanel: (panel: "calendar" | "command-center") => void;
+	notchDefaultPanel: "calendar" | "command-center" | "notifications";
+	changeNotchDefaultPanel: (panel: "calendar" | "command-center" | "notifications") => void;
 	timerSoundEnabled: boolean;
 	toggleTimerSound: () => void;
 	musicModeEnabled: boolean;
@@ -105,34 +105,53 @@ export function NotchTab({
 	statusWidgets,
 	handleWidgetsChange
 }: NotchTabProps) {
+	const [newPresetVal, setNewPresetVal] = useState("");
 	const [presetsInput, setPresetsInput] = useState(() => (timerPresets || [5, 15, 25, 50]).join(", "));
+	const isInputFocusedRef = useRef(false);
 
 	useEffect(() => {
-		setPresetsInput((timerPresets || [5, 15, 25, 50]).join(", "));
+		if (!isInputFocusedRef.current) {
+			setPresetsInput((timerPresets || [5, 15, 25, 50]).join(", "));
+		}
 	}, [timerPresets]);
 
-	const handlePresetsChange = (val: string) => {
-		setPresetsInput(val);
-		const nums = val
-			.split(/[\s,]+/)
-			.map((s) => parseFloat(s.trim()))
-			.filter((n) => !isNaN(n) && n > 0 && n <= 720);
-		if (nums.length > 0) {
-			updateTimerPresets(nums);
+	const removePreset = (indexToRemove: number) => {
+		const next = timerPresets.filter((_, idx) => idx !== indexToRemove);
+		if (next.length > 0) {
+			updateTimerPresets(next);
 		}
 	};
 
-	const handlePresetsBlur = () => {
+	const addPreset = () => {
+		const val = parseFloat(newPresetVal.trim());
+		if (!isNaN(val) && val > 0 && val <= 720) {
+			const next = Array.from(new Set([...timerPresets, val])).sort((a, b) => a - b);
+			updateTimerPresets(next);
+			setNewPresetVal("");
+		}
+	};
+
+	const resetPresets = () => {
+		const defaults = [5, 15, 25, 50];
+		updateTimerPresets(defaults);
+		setPresetsInput(defaults.join(", "));
+	};
+
+	const handlePresetsChange = (val: string) => {
+		setPresetsInput(val);
+	};
+
+	const handlePresetsCommit = () => {
 		const nums = presetsInput
 			.split(/[\s,]+/)
 			.map((s) => parseFloat(s.trim()))
 			.filter((n) => !isNaN(n) && n > 0 && n <= 720);
 		if (nums.length > 0) {
-			setPresetsInput(nums.join(", "));
-			updateTimerPresets(nums);
+			const unique = Array.from(new Set(nums)).sort((a, b) => a - b);
+			setPresetsInput(unique.join(", "));
+			updateTimerPresets(unique);
 		} else {
-			setPresetsInput("5, 15, 25, 50");
-			updateTimerPresets([5, 15, 25, 50]);
+			setPresetsInput((timerPresets || [5, 15, 25, 50]).join(", "));
 		}
 	};
 
@@ -189,13 +208,14 @@ export function NotchTab({
 					<SettingRow icon={PanelTop} label="Default Panel" desc="Open this panel when you click the notch">
 						<select
 							className="settings-select"
-							value={calendarEnabled ? notchDefaultPanel : "command-center"}
+							value={calendarEnabled ? notchDefaultPanel : (notchDefaultPanel === "calendar" ? "command-center" : notchDefaultPanel)}
 							onChange={(e) =>
-								changeNotchDefaultPanel(e.target.value as "calendar" | "command-center")
+								changeNotchDefaultPanel(e.target.value as "calendar" | "command-center" | "notifications")
 							}
 						>
-							<option value="calendar" disabled={!calendarEnabled}>Calendar</option>
+							<option value="calendar" disabled={!calendarEnabled}>To-Do List & Timer</option>
 							<option value="command-center">Command Center</option>
+							<option value="notifications">Notification Center</option>
 						</select>
 					</SettingRow>
 				)}
@@ -212,17 +232,86 @@ export function NotchTab({
 						<SettingRow
 							icon={Timer}
 							label="Timer Presets"
-							desc="Quick durations in minutes (comma separated, e.g. 5, 15, 25, 50)"
+							desc="Quick durations in minutes for the timer"
 						>
-							<div className="timer-presets-row">
-								<input
-									type="text"
-									className="timer-presets-input"
-									value={presetsInput}
-									onChange={(e) => handlePresetsChange(e.target.value)}
-									onBlur={handlePresetsBlur}
-									placeholder="5, 15, 25, 50"
-								/>
+							<div className="timer-presets-manager">
+								<div className="timer-presets-chips">
+									{timerPresets.map((preset, idx) => (
+										<span key={idx} className="timer-preset-chip">
+											<span className="preset-chip-num">{preset}m</span>
+											{timerPresets.length > 1 && (
+												<button
+													type="button"
+													className="preset-chip-remove"
+													onClick={() => removePreset(idx)}
+													title={`Remove ${preset}m`}
+												>
+													<X size={11} strokeWidth={2.4} />
+												</button>
+											)}
+										</span>
+									))}
+								</div>
+
+								<div className="timer-presets-add-row">
+									<div className="timer-add-field-group">
+										<input
+											type="number"
+											min="1"
+											max="720"
+											className="timer-add-input"
+											value={newPresetVal}
+											onChange={(e) => setNewPresetVal(e.target.value)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter") {
+													e.preventDefault();
+													addPreset();
+												}
+											}}
+											placeholder="Min (e.g. 45)"
+										/>
+										<button
+											type="button"
+											className="timer-add-btn"
+											onClick={addPreset}
+											disabled={!newPresetVal.trim()}
+										>
+											+ Add
+										</button>
+									</div>
+
+									<button
+										type="button"
+										className="timer-presets-reset-btn"
+										onClick={resetPresets}
+										title="Reset to 5, 15, 25, 50"
+									>
+										Reset
+									</button>
+								</div>
+
+								<div className="timer-presets-manual-row">
+									<span className="timer-presets-manual-label">Or edit comma list:</span>
+									<input
+										type="text"
+										className="timer-presets-input"
+										value={presetsInput}
+										onFocus={() => {
+											isInputFocusedRef.current = true;
+										}}
+										onChange={(e) => handlePresetsChange(e.target.value)}
+										onBlur={() => {
+											isInputFocusedRef.current = false;
+											handlePresetsCommit();
+										}}
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												(e.target as HTMLInputElement).blur();
+											}
+										}}
+										placeholder="5, 15, 25, 50"
+									/>
+								</div>
 							</div>
 						</SettingRow>
 

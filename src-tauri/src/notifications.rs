@@ -107,15 +107,7 @@ pub fn setup_notifications(app: AppHandle) {
     });
 }
 
-fn process_new_notification(
-    app: &AppHandle,
-    listener: &UserNotificationListener,
-    notif_id: u32,
-) {
-    let Ok(notif) = listener.GetNotification(notif_id) else {
-        return;
-    };
-
+fn extract_notification_data(notif: &windows::UI::Notifications::UserNotification) -> Option<NotificationData> {
     let app_name = notif
         .AppInfo()
         .ok()
@@ -152,23 +144,36 @@ fn process_new_notification(
     }
 
     if title.is_empty() && body.is_empty() {
-        return;
+        return None;
     }
 
     if title.is_empty() {
         title = app_name.clone();
     }
 
-    let data = NotificationData {
+    let notif_id = notif.Id().unwrap_or(0);
+
+    Some(NotificationData {
         id: notif_id,
         app_name,
         title,
         body,
         actions: vec!["Open".to_string(), "Dismiss".to_string()],
         timestamp: chrono_now_ms(),
-    };
+    })
+}
 
-    let _ = app.emit("bloom-new-notification", data);
+fn process_new_notification(
+    app: &AppHandle,
+    listener: &UserNotificationListener,
+    notif_id: u32,
+) {
+    let Ok(notif) = listener.GetNotification(notif_id) else {
+        return;
+    };
+    if let Some(data) = extract_notification_data(&notif) {
+        let _ = app.emit("bloom-new-notification", data);
+    }
 }
 
 fn chrono_now_ms() -> i64 {
@@ -183,6 +188,34 @@ pub fn dismiss_notification(id: u32) {
     if let Ok(listener) = UserNotificationListener::Current() {
         let _ = listener.RemoveNotification(id);
     }
+}
+
+#[tauri::command]
+pub fn clear_all_notifications() {
+    if let Ok(listener) = UserNotificationListener::Current() {
+        let _ = listener.ClearNotifications();
+    }
+}
+
+#[tauri::command]
+pub async fn get_active_notifications() -> Vec<NotificationData> {
+    tokio::task::spawn_blocking(|| {
+        let mut result = Vec::new();
+        if let Ok(listener) = UserNotificationListener::Current() {
+            if let Ok(op) = listener.GetNotificationsAsync(windows::UI::Notifications::NotificationKinds::Toast) {
+                if let Ok(notifs) = op.get() {
+                    for notif in notifs {
+                        if let Some(data) = extract_notification_data(&notif) {
+                            result.push(data);
+                        }
+                    }
+                }
+            }
+        }
+        result
+    })
+    .await
+    .unwrap_or_default()
 }
 
 #[tauri::command]

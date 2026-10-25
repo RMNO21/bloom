@@ -39,6 +39,7 @@ import { ShelfTypeIcon } from "./components/ShelfTypeIcon";
 import { WifiPanel } from "./components/WifiPanel";
 import { BluetoothPanel } from "./components/BluetoothPanel";
 import { TodoList } from "./components/TodoList";
+import { NotificationCenter } from "./components/NotificationCenter";
 import {
 	Cpu,
 	MemoryStick,
@@ -68,8 +69,8 @@ import {
  *   Dragging files onto the notch also opens the shelf. Wheel/swipe switches
  *   between tool panels, including when a live activity occupies the pill.
  */
-type NotchPanel = "calendar" | "command-center";
-const NOTCH_PANELS: readonly NotchPanel[] = ["calendar", "command-center"];
+type NotchPanel = "calendar" | "command-center" | "notifications";
+const NOTCH_PANELS: readonly NotchPanel[] = ["calendar", "command-center", "notifications"];
 const asNotchPanel = (value: unknown): NotchPanel | null =>
 	NOTCH_PANELS.includes(value as NotchPanel) ? (value as NotchPanel) : null;
 
@@ -425,6 +426,7 @@ type BloomMode =
 	| "music"
 	| "calendar"
 	| "command-center"
+	| "notifications"
 	| "announcement"
 	| "notification"
 	| "status"
@@ -1362,10 +1364,74 @@ function App() {
 		[activeNotification, dismissActiveNotification]
 	);
 
+	// Notification Center history list
+	const [notificationsList, setNotificationsList] = useState<NotificationItem[]>(() => {
+		try {
+			const saved = localStorage.getItem("bloom-notifications-history");
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed)) return parsed;
+			}
+		} catch {}
+		return [];
+	});
+
+	useEffect(() => {
+		try {
+			localStorage.setItem("bloom-notifications-history", JSON.stringify(notificationsList.slice(0, 50)));
+		} catch {}
+	}, [notificationsList]);
+
+	useEffect(() => {
+		invoke<NotificationItem[]>("get_active_notifications")
+			.then((active) => {
+				if (active && active.length > 0) {
+					setNotificationsList((prev) => {
+						const existingIds = new Set(prev.map((n) => n.id));
+						const newOnes = active.filter((n) => !existingIds.has(n.id));
+						return [...newOnes, ...prev].slice(0, 50);
+					});
+				}
+			})
+			.catch(() => {});
+	}, []);
+
+	const handleClearAllNotifications = useCallback(() => {
+		invoke("clear_all_notifications").catch(() => {});
+		setNotificationsList([]);
+	}, []);
+
+	const handleDismissNotificationItem = useCallback(
+		(id: number) => {
+			invoke("dismiss_notification", { id }).catch(() => {});
+			setNotificationsList((prev) => prev.filter((n) => n.id !== id));
+			if (activeNotification?.id === id) {
+				dismissActiveNotification();
+			}
+		},
+		[activeNotification, dismissActiveNotification]
+	);
+
+	const handleOpenNotificationItem = useCallback(
+		(item: NotificationItem) => {
+			if (item.app_name) {
+				invoke("focus_app_by_name", { appName: item.app_name }).catch(() => {});
+			}
+			invoke("dismiss_notification", { id: item.id }).catch(() => {});
+			setNotificationsList((prev) => prev.filter((n) => n.id !== item.id));
+			if (activeNotification?.id === item.id) {
+				dismissActiveNotification();
+			}
+		},
+		[activeNotification, dismissActiveNotification]
+	);
+
 	useEffect(() => {
 		const unlistenPromise = listen<NotificationItem>("bloom-new-notification", (event) => {
 			const data = event.payload;
 			if (!data || (!data.title && !data.body)) return;
+
+			setNotificationsList((prev) => [data, ...prev.filter((n) => n.id !== data.id)].slice(0, 50));
 
 			if (bloomModeRef.current !== "notification") {
 				prevModeBeforeNotifRef.current = bloomModeRef.current;
@@ -2785,9 +2851,14 @@ function App() {
 			hasSwitchedPanelRef.current = false;
 			openNotch(openingPanel());
 		} else if (!hasSwitchedPanelRef.current) {
-			// First click while open: switch page (if on calendar, go to command-center; if on command-center, go to calendar)
+			// First click while open: cycle to next panel
 			hasSwitchedPanelRef.current = true;
-			const targetMode: NotchPanel = bloomMode === "calendar" ? "command-center" : "calendar";
+			const panels = NOTCH_PANELS.filter(panelAvailable);
+			const currentIndex = panels.indexOf(bloomMode as NotchPanel);
+			const targetMode: NotchPanel =
+				currentIndex === -1
+					? openingPanel()
+					: panels[(currentIndex + 1) % panels.length] || "command-center";
 			setBloomMode(targetMode);
 			if (rememberPanelEnabled) {
 				rememberPanel(targetMode);
@@ -2959,6 +3030,7 @@ function App() {
 	// Calculate width dynamically based on enabled features
 	const getDynamicWidth = () => {
 		if (bloomMode === "notification" && activeNotification) return 390;
+		if (bloomMode === "notifications" && isOpen) return 380;
 		if (bloomMode === "announcement" && announcement && !announcementDismissed) return 380;
 		if (isCalendarMode && isOpen) return 480;
 		if (bloomMode === "shelf") return 380;
@@ -3008,6 +3080,7 @@ function App() {
 			return shelfOverflowing ? 190 : 176;
 		}
 		if (bloomMode === "command-center") return isOpen ? 310 : 36;
+		if (bloomMode === "notifications") return isOpen ? 310 : 36;
 		if (bloomMode === "wifi" || bloomMode === "bluetooth") return 300;
 		if (bloomMode === "status") return 36;
 		if ((bloomMode === "music" || isMusicMode) && isOpen) {
@@ -3960,7 +4033,10 @@ function App() {
 													className="cc-circular-btn"
 													onClick={(e) => {
 														e.stopPropagation();
-														invoke("open_notification_center");
+														setBloomMode("notifications");
+														if (rememberPanelEnabled) {
+															rememberPanel("notifications");
+														}
 													}}
 													title="Notification Center"
 												>
@@ -4044,6 +4120,27 @@ function App() {
 													<span className="cc-classic-percentage">{currentBrightness}%</span>
 												</div>
 											</div>
+										</motion.div>
+									)}
+								</AnimatePresence>
+
+								{/* Notification Center Panel */}
+								<AnimatePresence>
+									{bloomMode === "notifications" && isOpen && (
+										<motion.div
+											className="notification-center-content"
+											onClick={(e) => e.stopPropagation()}
+											initial={{ opacity: 0 }}
+											animate={{ opacity: 1 }}
+											exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }}
+											transition={{ type: "spring", stiffness: 400, damping: 30 }}
+										>
+											<NotificationCenter
+												notifications={notificationsList}
+												onClearAll={handleClearAllNotifications}
+												onDismissItem={handleDismissNotificationItem}
+												onOpenItem={handleOpenNotificationItem}
+											/>
 										</motion.div>
 									)}
 								</AnimatePresence>

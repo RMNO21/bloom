@@ -71,6 +71,18 @@ pub fn init_taskbar_marker(app: &tauri::AppHandle) {
     }
 }
 
+pub fn clean_stale_taskbar_marker() {
+    if let Some(p) = TASKBAR_MARKER.get() {
+        if let Ok(content) = std::fs::read_to_string(p) {
+            if let Some(pid) = parse_marker_pid(&content) {
+                if pid != std::process::id() && !is_process_running(pid) {
+                    let _ = std::fs::remove_file(p);
+                }
+            }
+        }
+    }
+}
+
 /// A separate Bloom process restores Explorer's taskbar when this process is
 /// terminated without running Tauri's exit handlers.
 pub fn start_taskbar_watchdog() -> std::io::Result<()> {
@@ -183,7 +195,22 @@ fn parse_marker_state(contents: &str) -> Option<i32> {
         .ok()
 }
 
-fn parse_marker_pid(contents: &str) -> Option<u32> {
+pub fn is_process_running(pid: u32) -> bool {
+    unsafe {
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+        if let Ok(handle) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+            let mut exit_code = 0u32;
+            let _ = windows::Win32::System::Threading::GetExitCodeProcess(handle, &mut exit_code);
+            let _ = CloseHandle(handle);
+            exit_code == 259 // STILL_ACTIVE
+        } else {
+            false
+        }
+    }
+}
+
+pub fn parse_marker_pid(contents: &str) -> Option<u32> {
     contents
         .lines()
         .find_map(|line| line.strip_prefix("pid=")?.parse().ok())
@@ -443,11 +470,11 @@ pub fn set_taskbar_visibility(visible: bool, always_on_top: bool) -> bool {
                 .unwrap_or_default();
             let contents = marker_contents(original, std::process::id(), primary, &secondaries);
             let existing = std::fs::read_to_string(p).ok();
-            // Never take over a marker that another Bloom process owns.
-            if (existing.is_some() || p.exists())
-                && existing.as_deref().and_then(parse_marker_pid) != Some(std::process::id())
-            {
-                return false;
+            // Only refuse if another LIVING Bloom process owns the marker.
+            if let Some(owner_pid) = existing.as_deref().and_then(parse_marker_pid) {
+                if owner_pid != std::process::id() && is_process_running(owner_pid) {
+                    return false;
+                }
             }
             // Rewritten when a monitor added since the last hide brings another
             // taskbar, so the watchdog can restore it as well.

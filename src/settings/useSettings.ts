@@ -50,9 +50,12 @@ export function useSettings() {
 		() => (localStorage.getItem("bloom-notch-remember-panel") ??
 			localStorage.getItem("bloom-notch-click-to-open")) !== "false"
 	);
-	const [notchDefaultPanel, setNotchDefaultPanel] = useState<"calendar" | "command-center">(
-		() => localStorage.getItem("bloom-notch-default-panel") === "command-center"
-			? "command-center" : "calendar"
+	const [notchDefaultPanel, setNotchDefaultPanel] = useState<"calendar" | "command-center" | "notifications">(
+		() => {
+			const saved = localStorage.getItem("bloom-notch-default-panel");
+			if (saved === "command-center" || saved === "notifications" || saved === "calendar") return saved;
+			return "calendar";
+		}
 	);
 	const [musicCompactNotch, setMusicCompactNotch] = useState(true);
 	const [shelfPersist, setShelfPersist] = useState(
@@ -575,7 +578,7 @@ export function useSettings() {
 		saveSetting("bloom-notch-remember-panel", String(next));
 	};
 
-	const changeNotchDefaultPanel = (panel: "calendar" | "command-center") => {
+	const changeNotchDefaultPanel = (panel: "calendar" | "command-center" | "notifications") => {
 		setNotchDefaultPanel(panel);
 		saveSetting("bloom-notch-default-panel", panel);
 	};

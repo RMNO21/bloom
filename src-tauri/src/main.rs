@@ -163,6 +163,8 @@ fn main() {
             save_todos,
             load_todos,
             notifications::dismiss_notification,
+            notifications::clear_all_notifications,
+            notifications::get_active_notifications,
             notifications::focus_app_by_name,
             notifications::emit_test_notification,
             clear_icon_cache,
@@ -236,6 +238,7 @@ fn main() {
             }
 
             init_taskbar_marker(app.handle());
+            clean_stale_taskbar_marker();
             // Populate the settings cache before anything else: a webview can
             // invoke save_setting as soon as it loads, which happens before the
             // rest of this hook runs.
@@ -246,6 +249,29 @@ fn main() {
                 // Instantly hide the native taskbar right at startup before explorer renders over it!
                 let _ = crate::utils::set_taskbar_visibility(false, false);
                 NATIVE_TASKBAR_HIDDEN.store(true, Ordering::Relaxed);
+
+                // Start an assertive watchdog for the first 10 seconds of startup to ensure Explorer
+                // never reveals the Windows taskbar during shell initialization.
+                std::thread::spawn(|| {
+                    for _ in 0..20 {
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                        if crate::state::SHUTTING_DOWN.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        if crate::utils::dock_enabled() && !crate::state::TRAY_INTERACTION_ACTIVE.load(Ordering::Relaxed) {
+                            unsafe {
+                                use windows::Win32::UI::WindowsAndMessaging::{FindWindowA, IsWindowVisible};
+                                let tray_class = windows::core::PCSTR(c"Shell_TrayWnd".as_ptr() as *const u8);
+                                if let Ok(tray) = FindWindowA(tray_class, windows::core::PCSTR::null()) {
+                                    if IsWindowVisible(tray).as_bool() {
+                                        let _ = crate::utils::set_taskbar_visibility(false, false);
+                                        NATIVE_TASKBAR_HIDDEN.store(true, Ordering::Relaxed);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
 
                 // Immediately trigger dock initialization in Rust in parallel with webview startup
                 let dock_mode = crate::utils::get_setting_str(&app.handle(), "bloom-dock-mode")
