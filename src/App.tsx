@@ -1753,14 +1753,25 @@ function App() {
 	const handleWheel = (e: React.WheelEvent) => {
 		const target = e.target as HTMLElement;
 		if (
-			target.closest(".calendar-grid") ||
-			target.closest(".todo-list-scroll") ||
-			target.closest(".todo-container") ||
-			target.closest(".timer-column") ||
 			target.closest(".shelf-content") ||
 			target.closest(".qp-list")
 		) {
 			return;
+		}
+
+		// If user is inside the todo scroll list and it actually has vertical overflow to scroll:
+		const todoScroll = target.closest(".todo-list-scroll") as HTMLElement | null;
+		if (todoScroll && todoScroll.scrollHeight > todoScroll.clientHeight + 4) {
+			const isVertical = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+			if (isVertical) {
+				const canScrollDown =
+					e.deltaY > 0 &&
+					todoScroll.scrollTop + todoScroll.clientHeight < todoScroll.scrollHeight - 2;
+				const canScrollUp = e.deltaY < 0 && todoScroll.scrollTop > 2;
+				if (canScrollDown || canScrollUp) {
+					return;
+				}
+			}
 		}
 
 		const now = Date.now();
@@ -1789,6 +1800,7 @@ function App() {
 			: panels[(currentIndex + direction + panels.length) % panels.length];
 		setIsOpen(true);
 		setBloomMode(nextMode);
+		rememberPanel(nextMode);
 		return true;
 	};
 
