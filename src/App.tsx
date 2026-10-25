@@ -491,6 +491,13 @@ function App() {
 	}, []);
 
 	const [time, setTime] = useState("");
+	const [currentDate, setCurrentDate] = useState(() => {
+		return new Date().toLocaleDateString(undefined, {
+			weekday: "short",
+			month: "short",
+			day: "numeric"
+		});
+	});
 	const [isHovered, setIsHovered] = useState(false);
 	// Expanded into a panel by a click. Hover alone only peeks.
 	const [isOpen, setIsOpen] = useState(false);
@@ -2082,6 +2089,13 @@ function App() {
 					hour12: !timeFormat24h
 				})
 			);
+			setCurrentDate(
+				now.toLocaleDateString(undefined, {
+					weekday: "short",
+					month: "short",
+					day: "numeric"
+				})
+			);
 		};
 
 		updateTime();
@@ -3357,7 +3371,10 @@ function App() {
 																		</motion.button>
 																	)}
 																</AnimatePresence>
-																<div className="time-flip-container" onClick={toggleCalendarMode}>
+																<div
+																	className={`time-flip-container ${isOpen ? "expanded-time-container" : ""}`}
+																	onClick={toggleCalendarMode}
+																>
 																	<AnimatePresence initial={false}>
 																		{!isOpen && (timerSeconds > 0 || isTimerFinished) ? (
 																			<motion.span
@@ -3380,7 +3397,7 @@ function App() {
 																		) : (
 																			<motion.span
 																				key="clock"
-																				className="time"
+																				className={`time ${isOpen ? "time-expanded-top" : ""}`}
 																				initial={{ rotateX: -90, opacity: 0 }}
 																				animate={{ rotateX: 0, opacity: 1 }}
 																				exit={{ rotateX: 90, opacity: 0 }}
@@ -3390,6 +3407,18 @@ function App() {
 																			</motion.span>
 																		)}
 																	</AnimatePresence>
+																	{isOpen && (
+																		<motion.span
+																			key="notch-date"
+																			className="notch-date-subtext"
+																			initial={{ opacity: 0, y: -2 }}
+																			animate={{ opacity: 1, y: 0 }}
+																			exit={{ opacity: 0, y: -2 }}
+																			transition={{ duration: 0.15 }}
+																		>
+																			{currentDate}
+																		</motion.span>
+																	)}
 																</div>
 																<AnimatePresence>
 																	{showPanelArrows && (

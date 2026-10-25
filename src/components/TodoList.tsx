@@ -79,11 +79,6 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 
 	const remainingCount = todos.filter((t) => !t.completed).length;
 	const completedCount = todos.length - remainingCount;
-	const todayFormatted = new Date().toLocaleDateString("en-US", {
-		weekday: "short",
-		month: "short",
-		day: "numeric"
-	});
 
 	return (
 		<div className="todo-container">
@@ -94,9 +89,6 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 					<span className="todo-title">Tasks</span>
 					<span className="todo-badge">
 						{remainingCount === 0 ? "All done" : `${remainingCount} left`}
-					</span>
-					<span className="todo-date-badge">
-						{todayFormatted}
 					</span>
 				</div>
 

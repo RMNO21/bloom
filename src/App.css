@@ -294,8 +294,23 @@ img {
 	transition: transform 0.1s ease;
 }
 
+.time-flip-container.expanded-time-container {
+	height: 32px;
+	min-width: 80px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 1px;
+	padding: 0 4px;
+}
+
 .time-flip-container:hover .time {
 	color: var(--bloom-text-muted, rgba(255, 255, 255, 0.8));
+}
+
+.time-flip-container:hover .notch-date-subtext {
+	color: var(--bloom-text, rgba(255, 255, 255, 0.9));
 }
 
 .time-flip-container:active {
@@ -310,6 +325,26 @@ img {
 	color: var(--bloom-text, white);
 	backface-visibility: hidden;
 	position: absolute;
+	transition: color 0.2s ease;
+}
+
+.time.time-expanded-top {
+	position: relative !important;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	line-height: 1.1;
+}
+
+.notch-date-subtext {
+	position: relative;
+	font-size: 10px;
+	font-weight: 500;
+	letter-spacing: 0.2px;
+	color: var(--bloom-text-muted, rgba(255, 255, 255, 0.65));
+	line-height: 1;
+	white-space: nowrap;
+	pointer-events: none;
 	transition: color 0.2s ease;
 }
 
