@@ -16,6 +16,7 @@ mod updater;
 mod utils;
 mod wifi;
 mod window_region;
+mod quick_settings;
 
 use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager};
@@ -33,11 +34,20 @@ unsafe extern "system" fn ctrl_handler(ctrl_type: u32) -> BOOL {
         set_taskbar_visibility(true, true);
         NATIVE_TASKBAR_HIDDEN.store(false, Ordering::Relaxed);
         set_native_osd_suppressed(false);
+        crate::notifications::set_windows_toast_suppression(false);
     }
     BOOL(0)
 }
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::System::Threading::{
+            GetCurrentProcess, SetPriorityClass, HIGH_PRIORITY_CLASS,
+        };
+        let _ = SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+    }
+
     let mut args = std::env::args_os();
     if args.nth(1).as_deref() == Some(std::ffi::OsStr::new("--taskbar-watchdog")) {
         if let (Some(pid), Some(marker)) = (args.next(), args.next()) {
@@ -71,14 +81,21 @@ fn main() {
         let err = GetLastError();
 
         if err.0 == 183 {
-            // Another instance is already running — signal it to open settings
-            if let Ok(h_event) = OpenEventW(
-                SYNCHRONIZATION_ACCESS_RIGHTS(0x00100002),
-                false,
-                windows::core::PCWSTR(event_name.as_ptr()),
-            ) {
-                let _ = SetEvent(h_event);
-                let _ = CloseHandle(h_event);
+            // Another instance is already running — only signal settings if explicitly requested
+            let is_boot_or_autostart = std::env::args().any(|a| {
+                a == "--boot" || a == "--autostart" || a == "--silent" || a == "--minimized"
+            });
+            let has_settings_flag = std::env::args().any(|a| a == "--settings" || a == "--show-settings");
+
+            if has_settings_flag && !is_boot_or_autostart {
+                if let Ok(h_event) = OpenEventW(
+                    SYNCHRONIZATION_ACCESS_RIGHTS(0x00100002),
+                    false,
+                    windows::core::PCWSTR(event_name.as_ptr()),
+                ) {
+                    let _ = SetEvent(h_event);
+                    let _ = CloseHandle(h_event);
+                }
             }
             if let Some(h) = h_mutex {
                 let _ = CloseHandle(h);
@@ -99,6 +116,19 @@ fn main() {
         }
     }
 
+    // Ensure priority autostart registry and startup shortcut
+    #[cfg(target_os = "windows")]
+    {
+        crate::utils::ensure_priority_startup();
+    }
+
+    // Instantly hide the native taskbar in main() on boot/autostart before webview initializes!
+    let is_boot = std::env::args().any(|a| a == "--boot" || a == "--autostart");
+    if is_boot || crate::utils::taskbar_marker_exists() {
+        let _ = crate::utils::set_taskbar_visibility(false, false);
+        crate::state::NATIVE_TASKBAR_HIDDEN.store(true, Ordering::Relaxed);
+    }
+
     diagnostics::initialize();
     setup_brightness_worker();
     let app = tauri::Builder::default()
@@ -117,6 +147,7 @@ fn main() {
             focus_notch_input,
             open_wifi_settings,
             open_sound_settings,
+            open_display_settings,
             open_notification_center,
             open_system_tray,
             set_ignore_cursor_events,
@@ -162,11 +193,18 @@ fn main() {
             load_pinned_apps,
             save_todos,
             load_todos,
+            save_notes,
+            load_notes,
+            save_alarms,
+            load_alarms,
+            dismiss_start_menu,
             notifications::dismiss_notification,
             notifications::clear_all_notifications,
             notifications::get_active_notifications,
             notifications::focus_app_by_name,
             notifications::emit_test_notification,
+            notifications::submit_notification_reply,
+            notifications::snooze_notification,
             clear_icon_cache,
             set_custom_icon,
             remove_custom_icon,
@@ -196,8 +234,32 @@ fn main() {
             set_bluetooth_state,
             open_bluetooth_settings,
             open_airplane_mode_settings,
+            quick_settings::get_audio_output_devices,
+            quick_settings::set_default_audio_device,
+            quick_settings::get_global_mic_mute,
+            quick_settings::set_global_mic_mute,
+            quick_settings::open_spatial_sound_settings,
+            quick_settings::get_mobile_hotspot_state,
+            quick_settings::set_mobile_hotspot_state,
+            quick_settings::get_vpn_connections,
+            quick_settings::toggle_vpn_connection,
+            quick_settings::get_airplane_mode_state,
+            quick_settings::set_airplane_mode_state,
+            quick_settings::set_projection_mode,
+            quick_settings::get_night_light_state,
+            quick_settings::set_night_light_state,
+            quick_settings::open_wireless_display_cast,
+            quick_settings::get_removable_drives,
+            quick_settings::eject_removable_drive,
+            quick_settings::get_power_mode,
+            quick_settings::set_power_mode,
+            quick_settings::get_keyboard_language,
+            quick_settings::toggle_keyboard_language,
+            quick_settings::open_touch_keyboard,
+            quick_settings::get_privacy_indicators,
             set_brightness,
             get_battery_saver_state,
+            set_battery_saver_state,
             open_battery_saver_settings,
             battery::get_battery_details,
             get_system_accent_color,
@@ -211,6 +273,10 @@ fn main() {
             updater::check_for_updates,
             updater::install_update,
             updater::get_update_state,
+            frontend_debug,
+            set_windows_toast_suppression_cmd,
+            set_taskbar_visibility_cmd,
+            clear_notification_history_cmd,
             dock_extras::get_dock_extras,
             dock_extras::open_dock_extra,
             dock_extras::eject_dock_extra,
@@ -232,9 +298,9 @@ fn main() {
             #[cfg(target_os = "windows")]
             unsafe {
                 use windows::Win32::System::Threading::{
-                    GetCurrentProcess, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS,
+                    GetCurrentProcess, SetPriorityClass, HIGH_PRIORITY_CLASS,
                 };
-                let _ = SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
+                let _ = SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
             }
 
             init_taskbar_marker(app.handle());
@@ -297,17 +363,17 @@ fn main() {
             }
 
             let window = app.get_webview_window("main").unwrap();
-            // tao rebuilds the extended style from its own flags whenever one
-            // changes (show, hide, ...). With its ignore-cursor flag on, every
-            // rebuild keeps the notch window layered, which its window region
-            // needs to stay transparent; set_click_through then drives the
-            // click-through bit directly. The worst a rebuild does is make the
-            // window click-through until the next cursor update.
-            let _ = window.set_ignore_cursor_events(true);
+            if let Ok(hwnd) = window.hwnd() {
+                crate::utils::strip_window_decorations(hwnd);
+                MAIN_HWND.store(hwnd.0 as isize, Ordering::Relaxed);
+                crate::utils::re_assert_topmost(hwnd);
+            }
+            let _ = window.show();
             let dock_win = app.get_webview_window("dock").unwrap();
             // Same for the dock window, which has a region too.
             let _ = dock_win.set_ignore_cursor_events(true);
             if let Ok(hwnd) = dock_win.hwnd() {
+                crate::utils::strip_window_decorations(hwnd);
                 DOCK_HWND.store(hwnd.0 as isize, Ordering::Relaxed);
             }
 
@@ -340,6 +406,7 @@ fn main() {
                     u_main();
                     sync_overlays(&handle_for_events);
                 }
+                tauri::WindowEvent::Focused(_) => {}
                 tauri::WindowEvent::ScaleFactorChanged { .. } => {
                     // Re-evaluate against the configured notch mode instead of
                     // registering unconditionally: on wake / display re-init a
@@ -530,6 +597,7 @@ fn main() {
             set_taskbar_visibility(true, true);
             NATIVE_TASKBAR_HIDDEN.store(false, Ordering::Relaxed);
             set_native_osd_suppressed(false);
+            crate::notifications::set_windows_toast_suppression(false);
         }
     });
 }

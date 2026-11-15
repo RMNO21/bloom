@@ -1,0 +1,932 @@
+/* Timers & Alarms Panel Component */
+.timers-panel-root {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	box-sizing: border-box;
+	user-select: none;
+	position: relative;
+	padding: 14px 18px 16px;
+	color: var(--bloom-text, #ffffff);
+}
+
+/* Nav Tabs */
+.timers-nav-tabs {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 20px;
+	padding: 3px;
+	margin-bottom: 12px;
+	width: fit-content;
+	align-self: center;
+}
+
+.timers-tab-btn {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	background: transparent;
+	border: none;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.65));
+	padding: 4px 12px;
+	border-radius: 16px;
+	font-size: 11.5px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.18s ease;
+}
+
+.timers-tab-btn:hover {
+	color: var(--bloom-text, #ffffff);
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.timers-tab-btn.active {
+	background: rgba(255, 255, 255, 0.16);
+	color: #ffffff;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.timers-tab-badge {
+	font-size: 9px;
+	background: #3b82f6;
+	color: #ffffff;
+	border-radius: 10px;
+	padding: 0 5px;
+	font-weight: 600;
+	margin-left: 2px;
+}
+
+/* Content Container */
+.timers-tab-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+	flex: 1;
+	min-height: 0;
+	width: 100%;
+}
+
+/* -------------------------------------------------------------
+   TAB 1: COUNTDOWN TIMER
+------------------------------------------------------------- */
+.timer-main-display {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	margin: 6px 0 10px;
+}
+
+.timer-digital-time {
+	font-size: 38px;
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	color: var(--bloom-text, #ffffff);
+	text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.timer-digital-time.finished {
+	color: #f59e0b;
+	animation: pulse-glow 1.2s infinite;
+}
+
+@keyframes pulse-glow {
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.timer-status-hint {
+	font-size: 11px;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.5));
+	margin-top: 4px;
+	font-weight: 500;
+}
+
+.timer-presets-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	margin-bottom: 10px;
+}
+
+.timer-preset-chip {
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.7));
+	padding: 3px 9px;
+	border-radius: 12px;
+	font-size: 11px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.timer-preset-chip:hover {
+	background: rgba(255, 255, 255, 0.12);
+	color: #ffffff;
+}
+
+.timer-preset-chip.active {
+	background: rgba(96, 165, 250, 0.25);
+	border-color: rgba(96, 165, 250, 0.45);
+	color: #93c5fd;
+}
+
+.timer-adjust-row {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+
+.timer-adjust-row button {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.7));
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 10.5px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.timer-adjust-row button:hover {
+	background: rgba(255, 255, 255, 0.12);
+	color: #ffffff;
+}
+
+.timer-custom-inputs {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 10px;
+}
+
+.timer-input-group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	background: rgba(0, 0, 0, 0.25);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	padding: 2px 6px;
+}
+
+.timer-input-group input {
+	width: 26px;
+	background: transparent;
+	border: none;
+	outline: none;
+	color: var(--bloom-text, #ffffff);
+	font-size: 12px;
+	font-weight: 600;
+	text-align: center;
+	font-family: inherit;
+}
+
+.timer-input-group input::-webkit-inner-spin-button,
+.timer-input-group input::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.timer-input-group span {
+	font-size: 10px;
+	color: rgba(255, 255, 255, 0.4);
+}
+
+.timer-custom-inputs .colon {
+	color: rgba(255, 255, 255, 0.3);
+	font-weight: 700;
+}
+
+/* Action Controls */
+.timer-action-controls {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: auto;
+	padding-top: 6px;
+}
+
+.timer-play-btn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: #3b82f6;
+	border: none;
+	color: #ffffff;
+	padding: 6px 18px;
+	border-radius: 20px;
+	font-size: 12.5px;
+	font-weight: 600;
+	cursor: pointer;
+	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+	transition: all 0.15s ease;
+}
+
+.timer-play-btn:hover {
+	background: #2563eb;
+	transform: scale(1.02);
+}
+
+.timer-play-btn.running {
+	background: rgba(255, 255, 255, 0.15);
+	box-shadow: none;
+	color: #ffffff;
+}
+
+.timer-play-btn.running:hover {
+	background: rgba(255, 255, 255, 0.22);
+}
+
+.timer-reset-btn,
+.timer-sound-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 50%;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.7));
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.timer-reset-btn:hover,
+.timer-sound-btn:hover {
+	background: rgba(255, 255, 255, 0.15);
+	color: #ffffff;
+}
+
+.timer-sound-btn.off {
+	color: rgba(255, 255, 255, 0.35);
+}
+
+/* -------------------------------------------------------------
+   TAB 2: POMODORO
+------------------------------------------------------------- */
+.pomo-phase-selector {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	background: rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 16px;
+	padding: 2px;
+	margin-bottom: 12px;
+}
+
+.pomo-phase-btn {
+	background: transparent;
+	border: none;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.6));
+	padding: 3px 10px;
+	border-radius: 14px;
+	font-size: 11px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.pomo-phase-btn:hover {
+	color: #ffffff;
+}
+
+.pomo-phase-btn.active.focus {
+	background: rgba(239, 68, 68, 0.25);
+	color: #f87171;
+	font-weight: 600;
+}
+
+.pomo-phase-btn.active.short {
+	background: rgba(16, 185, 129, 0.25);
+	color: #34d399;
+	font-weight: 600;
+}
+
+.pomo-phase-btn.active.long {
+	background: rgba(59, 130, 246, 0.25);
+	color: #60a5fa;
+	font-weight: 600;
+}
+
+.pomo-display {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	margin: 6px 0 14px;
+}
+
+.pomo-digital-time {
+	font-size: 38px;
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	color: var(--bloom-text, #ffffff);
+}
+
+.pomo-cycle-indicator {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	margin-top: 8px;
+}
+
+.pomo-dots {
+	display: flex;
+	gap: 6px;
+}
+
+.pomo-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.15);
+	transition: all 0.2s ease;
+}
+
+.pomo-dot.completed {
+	background: #ef4444;
+	box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.pomo-dot.active {
+	background: #f87171;
+	transform: scale(1.3);
+}
+
+.pomo-cycle-text {
+	font-size: 10.5px;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.5));
+}
+
+.pomo-cycle-info-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.pomo-cycle-reset-btn {
+	background: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.5));
+	font-size: 9px;
+	padding: 1px 5px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.pomo-cycle-reset-btn:hover {
+	background: rgba(255, 255, 255, 0.1);
+	color: #ffffff;
+}
+
+/* Completion Alert Banner */
+.pomo-finished-banner {
+	background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(239, 68, 68, 0.22));
+	border: 1px solid rgba(245, 158, 11, 0.45);
+	border-radius: 8px;
+	padding: 6px 10px;
+	margin-bottom: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	animation: pomoGlow 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes pomoGlow {
+	from { box-shadow: 0 0 6px rgba(245, 158, 11, 0.2); }
+	to { box-shadow: 0 0 14px rgba(239, 68, 68, 0.45); }
+}
+
+.pomo-finished-info {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.pomo-finished-bell {
+	color: #fbbf24;
+	flex-shrink: 0;
+	animation: pomoRinging 0.8s infinite ease-in-out;
+}
+
+@keyframes pomoRinging {
+	0%, 100% { transform: rotate(0deg); }
+	20%, 60% { transform: rotate(-12deg); }
+	40%, 80% { transform: rotate(12deg); }
+}
+
+.pomo-finished-text {
+	font-size: 11px;
+	font-weight: 600;
+	color: #ffffff;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pomo-finished-actions {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	flex-shrink: 0;
+}
+
+.pomo-dismiss-btn {
+	background: rgba(255, 255, 255, 0.12);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: #ffffff;
+	font-size: 10.5px;
+	font-weight: 500;
+	padding: 3px 8px;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.pomo-dismiss-btn:hover {
+	background: rgba(255, 255, 255, 0.22);
+}
+
+.pomo-next-btn {
+	background: #ef4444;
+	border: none;
+	color: #ffffff;
+	font-size: 10.5px;
+	font-weight: 600;
+	padding: 3px 9px;
+	border-radius: 5px;
+	cursor: pointer;
+	box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+	transition: all 0.15s ease;
+}
+
+.pomo-next-btn:hover {
+	background: #dc2626;
+	transform: translateY(-0.5px);
+}
+
+/* Customizable Duration Steppers */
+.pomo-durations-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	background: rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 8px;
+	padding: 5px 8px;
+	margin: 6px 0 8px 0;
+}
+
+.pomo-duration-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.pomo-dur-label {
+	font-size: 9.5px;
+	font-weight: 500;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.5));
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.pomo-dur-stepper {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 5px;
+	padding: 1px 3px;
+}
+
+.pomo-dur-stepper button {
+	background: transparent;
+	border: none;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.6));
+	font-size: 11px;
+	font-weight: 600;
+	width: 16px;
+	height: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	border-radius: 3px;
+	transition: all 0.12s ease;
+}
+
+.pomo-dur-stepper button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.15);
+	color: #ffffff;
+}
+
+.pomo-dur-stepper button:disabled {
+	opacity: 0.25;
+	cursor: not-allowed;
+}
+
+.pomo-dur-val {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--bloom-text, #ffffff);
+	min-width: 26px;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------
+   TAB 3: ALARMS
+------------------------------------------------------------- */
+.alarm-tab {
+	align-items: stretch;
+}
+
+.alarm-list-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-bottom: 6px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	margin-bottom: 6px;
+}
+
+.alarm-list-title {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--bloom-text, #ffffff);
+}
+
+.alarm-add-btn {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	background: rgba(59, 130, 246, 0.18);
+	border: 1px solid rgba(59, 130, 246, 0.35);
+	color: #93c5fd;
+	padding: 3px 8px;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.alarm-add-btn:hover {
+	background: rgba(59, 130, 246, 0.28);
+	color: #ffffff;
+}
+
+.alarm-add-form {
+	background: rgba(0, 0, 0, 0.28);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	padding: 8px 10px;
+	margin-bottom: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	overflow: hidden;
+}
+
+.alarm-form-row {
+	display: flex;
+	gap: 8px;
+}
+
+.alarm-time-input {
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 6px;
+	color: #ffffff;
+	font-size: 12px;
+	font-family: inherit;
+	padding: 3px 6px;
+	outline: none;
+}
+
+.alarm-label-input {
+	flex: 1;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 6px;
+	color: #ffffff;
+	font-size: 11.5px;
+	font-family: inherit;
+	padding: 3px 8px;
+	outline: none;
+}
+
+.alarm-label-input::placeholder {
+	color: rgba(255, 255, 255, 0.3);
+}
+
+.alarm-form-bottom {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.alarm-repeat-chips {
+	display: flex;
+	gap: 4px;
+}
+
+.repeat-chip {
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	color: rgba(255, 255, 255, 0.6);
+	padding: 2px 6px;
+	border-radius: 6px;
+	font-size: 10px;
+	cursor: pointer;
+}
+
+.repeat-chip.active {
+	background: rgba(59, 130, 246, 0.25);
+	border-color: rgba(59, 130, 246, 0.45);
+	color: #93c5fd;
+}
+
+.alarm-form-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.alarm-btn-cancel {
+	background: transparent;
+	border: none;
+	color: rgba(255, 255, 255, 0.5);
+	font-size: 11px;
+	cursor: pointer;
+	padding: 2px 6px;
+}
+
+.alarm-btn-cancel:hover {
+	color: #ffffff;
+}
+
+.alarm-btn-save {
+	background: #3b82f6;
+	border: none;
+	color: #ffffff;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 500;
+	padding: 3px 10px;
+	cursor: pointer;
+}
+
+.alarm-btn-save:hover {
+	background: #2563eb;
+}
+
+.alarm-items-scroll {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding-right: 2px;
+	min-height: 0;
+	max-height: 180px;
+}
+
+.alarm-items-scroll::-webkit-scrollbar {
+	width: 4px;
+}
+
+.alarm-items-scroll::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.15);
+	border-radius: 4px;
+}
+
+.alarm-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 24px 0;
+	color: rgba(255, 255, 255, 0.4);
+	font-size: 11.5px;
+}
+
+.alarm-empty-icon {
+	color: rgba(255, 255, 255, 0.2);
+}
+
+.alarm-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 8px;
+	padding: 8px 10px;
+	transition: all 0.15s ease;
+}
+
+.alarm-card:hover {
+	background: rgba(255, 255, 255, 0.07);
+	border-color: rgba(255, 255, 255, 0.12);
+}
+
+.alarm-card.disabled {
+	opacity: 0.5;
+}
+
+.alarm-card-left {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.alarm-card-time {
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: var(--bloom-text, #ffffff);
+	font-variant-numeric: tabular-nums;
+}
+
+.alarm-card-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.alarm-card-label {
+	font-size: 11px;
+	color: var(--bloom-text-secondary, rgba(255, 255, 255, 0.7));
+}
+
+.alarm-card-repeat {
+	font-size: 9.5px;
+	background: rgba(255, 255, 255, 0.08);
+	color: rgba(255, 255, 255, 0.5);
+	padding: 1px 5px;
+	border-radius: 6px;
+}
+
+.alarm-card-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* iOS-style toggle switch */
+.alarm-switch {
+	width: 32px;
+	height: 18px;
+	background: rgba(255, 255, 255, 0.18);
+	border-radius: 12px;
+	border: none;
+	cursor: pointer;
+	position: relative;
+	transition: background 0.2s ease;
+	padding: 0;
+}
+
+.alarm-switch.active {
+	background: #10b981;
+}
+
+.alarm-switch-knob {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 14px;
+	height: 14px;
+	background: #ffffff;
+	border-radius: 50%;
+	transition: transform 0.2s ease;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.alarm-switch.active .alarm-switch-knob {
+	transform: translateX(14px);
+}
+
+.alarm-delete-btn {
+	background: transparent;
+	border: none;
+	color: rgba(255, 255, 255, 0.35);
+	cursor: pointer;
+	padding: 3px;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	transition: color 0.15s ease;
+}
+
+.alarm-delete-btn:hover {
+	color: #ef4444;
+}
+
+/* Ringing Alarm Alert Banner */
+.ringing-alarm-banner {
+	background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(245, 158, 11, 0.3));
+	border: 1px solid rgba(239, 68, 68, 0.5);
+	border-radius: 10px;
+	padding: 8px 12px;
+	margin-bottom: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	box-shadow: 0 4px 16px rgba(239, 68, 68, 0.25);
+	animation: pulse-ring 1s infinite alternate;
+}
+
+@keyframes pulse-ring {
+	0% { border-color: rgba(239, 68, 68, 0.5); }
+	100% { border-color: rgba(245, 158, 11, 0.9); }
+}
+
+.ringing-alarm-info {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.ringing-bell-icon {
+	color: #f59e0b;
+	animation: shake-bell 0.5s infinite;
+}
+
+@keyframes shake-bell {
+	0%, 100% { transform: rotate(0); }
+	25% { transform: rotate(-15deg); }
+	75% { transform: rotate(15deg); }
+}
+
+.ringing-alarm-title {
+	font-size: 12px;
+	font-weight: 700;
+	color: #ffffff;
+}
+
+.ringing-alarm-time {
+	font-size: 10.5px;
+	color: rgba(255, 255, 255, 0.75);
+}
+
+.ringing-alarm-btns {
+	display: flex;
+	gap: 6px;
+}
+
+.alarm-snooze-btn {
+	background: rgba(255, 255, 255, 0.18);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	color: #ffffff;
+	font-size: 10.5px;
+	font-weight: 500;
+	padding: 3px 8px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.alarm-snooze-btn:hover {
+	background: rgba(255, 255, 255, 0.28);
+}
+
+.alarm-dismiss-btn {
+	background: #ef4444;
+	border: none;
+	color: #ffffff;
+	font-size: 10.5px;
+	font-weight: 600;
+	padding: 3px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+}
+
+.alarm-dismiss-btn:hover {
+	background: #dc2626;
+}

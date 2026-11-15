@@ -11,7 +11,13 @@ import {
 	CloudSun,
 	Timer,
 	Archive,
-	X
+	X,
+	Flame,
+	RotateCcw,
+	Sliders,
+	MoveVertical,
+	Shield,
+	Box
 } from "lucide-react";
 import { SettingRow } from "./SettingRow";
 import { StatusWidgetConfig } from "../components/StatusWidgetConfig";
@@ -22,14 +28,26 @@ interface NotchTabProps {
 	setNotchModeValue: (mode: string) => void;
 	notchEdgeDelay: number;
 	handleNotchEdgeDelayChange: (val: number) => void;
+	notchOffsetY?: number;
+	handleNotchOffsetYChange?: (val: number) => void;
+	notchWidthOffset?: number;
+	handleNotchWidthOffsetChange?: (val: number) => void;
+	notchCornerRadius?: number;
+	handleNotchCornerRadiusChange?: (val: number) => void;
+	notchCloseOutside?: boolean;
+	toggleNotchCloseOutside?: () => void;
+	notchProtectStartMenu?: boolean;
+	toggleNotchProtectStartMenu?: () => void;
+	notchFullscreenDisable?: boolean;
+	toggleNotchFullscreenDisable?: () => void;
 	calendarEnabled: boolean;
 	toggleCalendar: () => void;
 	timerPresets: number[];
 	updateTimerPresets: (presets: number[]) => void;
 	notchRememberPanel: boolean;
 	toggleNotchRememberPanel: () => void;
-	notchDefaultPanel: "calendar" | "command-center" | "notifications";
-	changeNotchDefaultPanel: (panel: "calendar" | "command-center" | "notifications") => void;
+	notchDefaultPanel: "calendar" | "command-center" | "timers" | "notifications";
+	changeNotchDefaultPanel: (panel: "calendar" | "command-center" | "timers" | "notifications") => void;
 	timerSoundEnabled: boolean;
 	toggleTimerSound: () => void;
 	musicModeEnabled: boolean;
@@ -62,6 +80,12 @@ interface NotchTabProps {
 	handleCityClear: () => void;
 	statusWidgets: WidgetConfig;
 	handleWidgetsChange: (config: WidgetConfig) => void;
+	pomoFocusMins?: number;
+	pomoShortMins?: number;
+	pomoLongMins?: number;
+	pomoCycles?: number;
+	updatePomoSettings?: (focus: number, shortB: number, longB: number, cycles: number) => void;
+	resetPomoProgress?: () => void;
 }
 
 export function NotchTab({
@@ -69,6 +93,18 @@ export function NotchTab({
 	setNotchModeValue,
 	notchEdgeDelay,
 	handleNotchEdgeDelayChange,
+	notchOffsetY = 0,
+	handleNotchOffsetYChange,
+	notchWidthOffset = 0,
+	handleNotchWidthOffsetChange,
+	notchCornerRadius = 18,
+	handleNotchCornerRadiusChange,
+	notchCloseOutside = true,
+	toggleNotchCloseOutside,
+	notchProtectStartMenu = true,
+	toggleNotchProtectStartMenu,
+	notchFullscreenDisable = true,
+	toggleNotchFullscreenDisable,
 	calendarEnabled,
 	toggleCalendar,
 	timerPresets,
@@ -103,7 +139,13 @@ export function NotchTab({
 	selectCity,
 	handleCityClear,
 	statusWidgets,
-	handleWidgetsChange
+	handleWidgetsChange,
+	pomoFocusMins = 25,
+	pomoShortMins = 5,
+	pomoLongMins = 15,
+	pomoCycles = 4,
+	updatePomoSettings,
+	resetPomoProgress
 }: NotchTabProps) {
 	const [newPresetVal, setNewPresetVal] = useState("");
 	const [presetsInput, setPresetsInput] = useState(() => (timerPresets || [5, 15, 25, 50]).join(", "));
@@ -157,28 +199,28 @@ export function NotchTab({
 
 	return (
 		<>
-			<div className="setting-group-label">Notch</div>
+			<div className="setting-group-label">Notch Behavior</div>
 			<div className="setting-group">
-				<SettingRow icon={PanelTop} label="Notch Behavior" desc="Choose how the notch appears">
+				<SettingRow icon={PanelTop} label="Trigger Mode" desc="Choose how the notch activates and expands">
 					<select
 						className="settings-select"
 						value={notchMode}
 						onChange={(e) => setNotchModeValue(e.target.value)}
 					>
-						<option value="fixed">Fixed</option>
-						<option value="smart">Smart</option>
-						<option value="peek">Peek</option>
+						<option value="smart">Smart (Expand on hover / click)</option>
+						<option value="fixed">Fixed (Always expanded)</option>
+						<option value="peek">Peek (Show only on edge contact)</option>
 					</select>
 				</SettingRow>
 
 				{notchMode !== "fixed" && (
 					<SettingRow
 						icon={Timer}
-						label="Peek Delay"
+						label="Hover Delay"
 						desc={
 							notchEdgeDelay === 0
 								? "Reveal instantly on top-edge contact"
-								: `Rest on the top edge for ${notchEdgeDelay}ms to reveal`
+								: `Wait ${notchEdgeDelay}ms on screen edge before expanding`
 						}
 					>
 						<input
@@ -192,6 +234,108 @@ export function NotchTab({
 						/>
 					</SettingRow>
 				)}
+
+				<SettingRow
+					icon={Shield}
+					label="Suppress in Fullscreen Games"
+					desc="Disable mouse hover activation while gaming or watching fullscreen videos"
+				>
+					<label className="toggle-switch">
+						<input
+							type="checkbox"
+							checked={notchFullscreenDisable}
+							onChange={toggleNotchFullscreenDisable}
+						/>
+						<span className="slider"></span>
+					</label>
+				</SettingRow>
+
+				<SettingRow
+					icon={PanelTop}
+					label="Close on Outside Click"
+					desc="Automatically collapse the notch when clicking anywhere else on screen"
+				>
+					<label className="toggle-switch">
+						<input
+							type="checkbox"
+							checked={notchCloseOutside}
+							onChange={toggleNotchCloseOutside}
+						/>
+						<span className="slider"></span>
+					</label>
+				</SettingRow>
+
+				<SettingRow
+					icon={Shield}
+					label="Protect on Start Menu"
+					desc="Prevent notch from accidentally closing when opening the Windows Start Menu"
+					divider={false}
+				>
+					<label className="toggle-switch">
+						<input
+							type="checkbox"
+							checked={notchProtectStartMenu}
+							onChange={toggleNotchProtectStartMenu}
+						/>
+						<span className="slider"></span>
+					</label>
+				</SettingRow>
+			</div>
+
+			<div className="setting-group-label setting-group-label--spaced">Dimensions & Position</div>
+			<div className="setting-group">
+				<SettingRow
+					icon={MoveVertical}
+					label="Top Screen Offset (Y)"
+					desc={`Vertical margin from top screen bezel (${notchOffsetY}px)`}
+				>
+					<input
+						type="range"
+						min="0"
+						max="24"
+						step="2"
+						value={notchOffsetY}
+						onChange={(e) => handleNotchOffsetYChange?.(parseInt(e.target.value))}
+						className="settings-slider"
+					/>
+				</SettingRow>
+
+				<SettingRow
+					icon={Sliders}
+					label="Width Adjustment"
+					desc={`Fine-tune notch base width (${notchWidthOffset > 0 ? `+${notchWidthOffset}` : notchWidthOffset}px)`}
+				>
+					<input
+						type="range"
+						min="-40"
+						max="60"
+						step="5"
+						value={notchWidthOffset}
+						onChange={(e) => handleNotchWidthOffsetChange?.(parseInt(e.target.value))}
+						className="settings-slider"
+					/>
+				</SettingRow>
+
+				<SettingRow
+					icon={Box}
+					label="Corner Curvature"
+					desc={`Bottom border radius curvature (${notchCornerRadius}px)`}
+					divider={false}
+				>
+					<input
+						type="range"
+						min="12"
+						max="26"
+						step="1"
+						value={notchCornerRadius}
+						onChange={(e) => handleNotchCornerRadiusChange?.(parseInt(e.target.value))}
+						className="settings-slider"
+					/>
+				</SettingRow>
+			</div>
+
+			<div className="setting-group-label setting-group-label--spaced">Panels & Navigation</div>
+			<div className="setting-group">
 
 				<SettingRow
 					icon={PanelTop}
@@ -210,17 +354,18 @@ export function NotchTab({
 							className="settings-select"
 							value={calendarEnabled ? notchDefaultPanel : (notchDefaultPanel === "calendar" ? "command-center" : notchDefaultPanel)}
 							onChange={(e) =>
-								changeNotchDefaultPanel(e.target.value as "calendar" | "command-center" | "notifications")
+								changeNotchDefaultPanel(e.target.value as "calendar" | "command-center" | "timers" | "notifications")
 							}
 						>
-							<option value="calendar" disabled={!calendarEnabled}>To-Do List & Timer</option>
-							<option value="command-center">Command Center</option>
+							<option value="command-center">Command Center (Dashboard)</option>
+							<option value="calendar" disabled={!calendarEnabled}>To-Do & Notes</option>
+							<option value="timers">Timers & Alarms</option>
 							<option value="notifications">Notification Center</option>
 						</select>
 					</SettingRow>
 				)}
 
-				<SettingRow icon={Calendar} label="Calendar & Timer" desc="Enable productivity split-view">
+				<SettingRow icon={Calendar} label="To-Do & Notes" desc="Enable productivity split-view with tasks and notes">
 					<label className="toggle-switch">
 						<input type="checkbox" checked={calendarEnabled} onChange={toggleCalendar} />
 						<span className="slider"></span>
@@ -325,6 +470,68 @@ export function NotchTab({
 								<span className="slider"></span>
 							</label>
 						</SettingRow>
+
+						<SettingRow
+							icon={Flame}
+							label="Pomodoro Focus"
+							desc={`${pomoFocusMins} minutes focus work duration`}
+						>
+							<input
+								type="range"
+								min="5"
+								max="90"
+								step="5"
+								value={pomoFocusMins}
+								onChange={(e) =>
+									updatePomoSettings?.(parseInt(e.target.value), pomoShortMins, pomoLongMins, pomoCycles)
+								}
+								className="settings-slider"
+							/>
+						</SettingRow>
+
+						<SettingRow
+							icon={Timer}
+							label="Short Break"
+							desc={`${pomoShortMins} minutes short pause`}
+						>
+							<input
+								type="range"
+								min="1"
+								max="30"
+								step="1"
+								value={pomoShortMins}
+								onChange={(e) =>
+									updatePomoSettings?.(pomoFocusMins, parseInt(e.target.value), pomoLongMins, pomoCycles)
+								}
+								className="settings-slider"
+							/>
+						</SettingRow>
+
+						<SettingRow
+							icon={Timer}
+							label="Long Break"
+							desc={`${pomoLongMins} minutes long rest`}
+						>
+							<input
+								type="range"
+								min="5"
+								max="60"
+								step="5"
+								value={pomoLongMins}
+								onChange={(e) =>
+									updatePomoSettings?.(pomoFocusMins, pomoShortMins, parseInt(e.target.value), pomoCycles)
+								}
+								className="settings-slider"
+							/>
+						</SettingRow>
+
+						<SettingRow
+							icon={RotateCcw}
+							label="Reset Pomodoro Daily Cycles"
+							desc="Clear today's completed cycle steps and start fresh"
+							action
+							onClick={resetPomoProgress}
+						/>
 					</>
 				)}
 

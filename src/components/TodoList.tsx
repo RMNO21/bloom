@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Plus, Trash2, ListTodo, Timer } from "lucide-react";
+import { Check, Plus, Trash2, ListTodo, StickyNote } from "lucide-react";
 import "./TodoList.css";
 
 export interface TodoItem {
@@ -19,12 +19,22 @@ const DEFAULT_TODOS: TodoItem[] = [
 ];
 
 interface TodoListProps {
+	isNotesCollapsed?: boolean;
+	onToggleNotes?: () => void;
 	isTimerCollapsed?: boolean;
 	onToggleTimer?: () => void;
 	onPinNotch?: (pinned: boolean) => void;
 }
 
-export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoListProps) {
+export function TodoList({
+	isNotesCollapsed,
+	onToggleNotes,
+	isTimerCollapsed,
+	onToggleTimer,
+	onPinNotch
+}: TodoListProps) {
+	const collapsed = isNotesCollapsed ?? isTimerCollapsed ?? false;
+	const toggleCollapsed = onToggleNotes ?? onToggleTimer;
 	const isLoadedFromDiskRef = useRef(false);
 	const [todos, setTodos] = useState<TodoItem[]>(() => {
 		try {
@@ -113,6 +123,16 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 	const remainingCount = todos.filter((t) => !t.completed).length;
 	const completedCount = todos.length - remainingCount;
 
+	// Sort uncompleted tasks above completed tasks
+	const sortedTodos = useMemo(() => {
+		return [...todos].sort((a, b) => {
+			if (a.completed === b.completed) {
+				return b.createdAt - a.createdAt;
+			}
+			return a.completed ? 1 : -1;
+		});
+	}, [todos]);
+
 	return (
 		<div className="todo-container">
 			{/* Header */}
@@ -135,13 +155,13 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 							Clear
 						</button>
 					)}
-					{onToggleTimer && (
+					{toggleCollapsed && (
 						<button
-							className={`todo-btn-timer-toggle ${!isTimerCollapsed ? "active" : ""}`}
-							onClick={onToggleTimer}
-							title={isTimerCollapsed ? "Show Timer" : "Hide Timer"}
+							className={`todo-btn-timer-toggle ${!collapsed ? "active" : ""}`}
+							onClick={toggleCollapsed}
+							title={collapsed ? "Show Notes" : "Hide Notes"}
 						>
-							<Timer size={14} />
+							<StickyNote size={14} />
 						</button>
 					)}
 				</div>
@@ -158,11 +178,9 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 					onChange={(e) => setInputText(e.target.value)}
 					onFocus={() => {
 						onPinNotch?.(true);
-						invoke("focus_notch_input", { focus: true }).catch(() => {});
 					}}
 					onBlur={() => {
 						onPinNotch?.(false);
-						invoke("focus_notch_input", { focus: false }).catch(() => {});
 					}}
 					onKeyDown={(e) => {
 						if (e.key === "Enter") handleAddTodo();
@@ -182,7 +200,7 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 			{/* Task list */}
 			<div className="todo-list-scroll">
 				<AnimatePresence initial={false}>
-					{todos.length === 0 ? (
+					{sortedTodos.length === 0 ? (
 						<motion.div
 							className="todo-empty-state"
 							initial={{ opacity: 0, y: 6 }}
@@ -193,7 +211,7 @@ export function TodoList({ isTimerCollapsed, onToggleTimer, onPinNotch }: TodoLi
 							<span>No tasks yet. Stay productive!</span>
 						</motion.div>
 					) : (
-						todos.map((todo) => (
+						sortedTodos.map((todo) => (
 							<motion.div
 								key={todo.id}
 								className={`todo-item ${todo.completed ? "completed" : ""}`}

@@ -290,6 +290,70 @@ body {
 	box-shadow: none;
 }
 
+/* Language and Privacy Indicators */
+.dock-lang-icon {
+	font-family: inherit;
+	font-weight: 700;
+	font-size: 11px;
+	letter-spacing: 0.5px;
+	color: var(--bloom-text, white);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.dock-lang-text {
+	line-height: 1;
+}
+
+.dock-privacy-cluster {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 0 4px;
+}
+
+.dock-privacy-dot {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	font-size: 10px;
+	color: #fff;
+	animation: dock-privacy-pulse 2s infinite ease-in-out;
+}
+
+.dock-privacy-dot.mic {
+	background: rgba(245, 158, 11, 0.25);
+	color: #fbbf24;
+	border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.dock-privacy-dot.camera {
+	background: rgba(16, 185, 129, 0.25);
+	color: #34d399;
+	border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.dock-privacy-dot.location {
+	background: rgba(59, 130, 246, 0.25);
+	color: #60a5fa;
+	border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+@keyframes dock-privacy-pulse {
+	0%, 100% {
+		opacity: 0.85;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.08);
+	}
+}
+
 /* System Tray Container & Items */
 .dock-tray-container {
 	display: flex;

@@ -1,6 +1,8 @@
 {
-  "name": "bloom",
+  "name": "bloom-alternative-by-rmno21",
   "version": "3.10.1",
+  "description": "Bloom Alternative by RMNO21 - Enhanced desktop companion for Windows",
+  "author": "RMNO21 (Raman Tondro)",
   "private": true,
   "license": "GPL-3.0-only",
   "type": "module",

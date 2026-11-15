@@ -1,7 +1,7 @@
-import { Palette, Droplet, Contrast, Droplets, Sun, Square, Maximize2 } from "lucide-react";
+import { Palette, Droplet, Contrast, Droplets, Sun, Square, Maximize2, Moon, Sparkles, Box } from "lucide-react";
 import { SettingRow } from "./SettingRow";
 
-interface AppearanceTabProps {
+export interface AppearanceTabProps {
 	themeMode: string;
 	handleThemeModeChange: (mode: string) => void;
 	themeColor: string;
@@ -16,7 +16,23 @@ interface AppearanceTabProps {
 	toggleCorners: () => void;
 	scale: number;
 	handleScaleChange: (val: number) => void;
+	zeroShadowMode?: boolean;
+	toggleZeroShadowMode?: () => void;
+	borderStyle?: string;
+	handleBorderStyleChange?: (val: string) => void;
+	blurStyle?: string;
+	handleBlurStyleChange?: (val: string) => void;
+	applyThemePreset?: (preset: any) => void;
 }
+
+const THEME_PRESETS = [
+	{ name: "OLED Black", mode: "dark", color: "#000000", opacity: 0.98, zeroShadow: true, border: "subtle", blur: "oled", bg: "#000000" },
+	{ name: "Midnight", mode: "dark", color: "#0d0f14", opacity: 0.85, zeroShadow: true, border: "subtle", blur: "acrylic", bg: "#0d0f14" },
+	{ name: "Slate", mode: "dark", color: "#1e222b", opacity: 0.8, zeroShadow: true, border: "subtle", blur: "acrylic", bg: "#1e222b" },
+	{ name: "Deep Navy", mode: "custom", color: "#0b1526", opacity: 0.88, zeroShadow: true, border: "subtle", blur: "acrylic", bg: "#0b1526" },
+	{ name: "Cyber Violet", mode: "custom", color: "#180d2b", opacity: 0.88, zeroShadow: true, border: "subtle", blur: "acrylic", bg: "#180d2b" },
+	{ name: "Light Frosted", mode: "light", color: "#f8fafc", opacity: 0.85, zeroShadow: true, border: "subtle", blur: "frosted", bg: "#f1f5f9" }
+];
 
 export function AppearanceTab({
 	themeMode,
@@ -32,14 +48,91 @@ export function AppearanceTab({
 	cornersEnabled,
 	toggleCorners,
 	scale,
-	handleScaleChange
+	handleScaleChange,
+	zeroShadowMode = true,
+	toggleZeroShadowMode,
+	borderStyle = "subtle",
+	handleBorderStyleChange,
+	blurStyle = "acrylic",
+	handleBlurStyleChange,
+	applyThemePreset
 }: AppearanceTabProps) {
 	const showCustomColor = themeMode === "custom";
 	const showAdvancedSliders = themeMode === "custom" || themeMode === "adaptive";
 
 	return (
 		<>
-			<div className="setting-group-label">Theme</div>
+			<div className="setting-group-label">Quick Theme Presets</div>
+			<div className="setting-group" style={{ padding: "12px 14px" }}>
+				<div className="theme-presets-grid">
+					{THEME_PRESETS.map((p) => (
+						<button
+							key={p.name}
+							type="button"
+							className="theme-preset-card"
+							onClick={() => applyThemePreset?.(p)}
+						>
+							<span className="theme-preset-preview" style={{ background: p.bg }} />
+							<span className="theme-preset-name">{p.name}</span>
+						</button>
+					))}
+				</div>
+			</div>
+
+			<div className="setting-group-label setting-group-label--spaced">Visual Effects & Shadows</div>
+			<div className="setting-group">
+				<SettingRow
+					icon={Moon}
+					label="Zero Shadow Mode"
+					desc="Completely eliminate shadows, halos, and glowing rings around notch and cards for a clean minimal look"
+				>
+					<label className="toggle-switch">
+						<input
+							type="checkbox"
+							checked={zeroShadowMode}
+							onChange={toggleZeroShadowMode}
+						/>
+						<span className="slider"></span>
+					</label>
+				</SettingRow>
+
+				<SettingRow
+					icon={Box}
+					label="Card Border Style"
+					desc="Thickness and appearance of borders around the notch and widgets"
+				>
+					<select
+						className="settings-select"
+						value={borderStyle}
+						onChange={(e) => handleBorderStyleChange?.(e.target.value)}
+					>
+						<option value="subtle">Subtle (1px translucent)</option>
+						<option value="fine">Hairline (0.5px ultra-thin)</option>
+						<option value="none">Borderless (Seamless flat)</option>
+						<option value="accent">Tinted Accent</option>
+					</select>
+				</SettingRow>
+
+				<SettingRow
+					icon={Sparkles}
+					label="Translucency Effect"
+					desc="Background material and blur style behind notch and dock"
+					divider={false}
+				>
+					<select
+						className="settings-select"
+						value={blurStyle}
+						onChange={(e) => handleBlurStyleChange?.(e.target.value)}
+					>
+						<option value="acrylic">Acrylic Glass (Deep Blur)</option>
+						<option value="mica">Windows Mica Effect</option>
+						<option value="oled">Pure Solid Black (Zero Blur)</option>
+						<option value="frosted">Frosted Minimal</option>
+					</select>
+				</SettingRow>
+			</div>
+
+			<div className="setting-group-label setting-group-label--spaced">Color & Theme</div>
 			<div className="setting-group">
 				<SettingRow icon={Palette} label="Theme Mode" desc="Configure visual styling">
 					<select
@@ -127,9 +220,9 @@ export function AppearanceTab({
 				)}
 			</div>
 
-			<div className="setting-group-label">Display</div>
+			<div className="setting-group-label setting-group-label--spaced">Display & Layout</div>
 			<div className="setting-group">
-				<SettingRow icon={Square} label="Screen Corners" desc="Rounded top edges">
+				<SettingRow icon={Square} label="Screen Corners" desc="Rounded top screen corners (macOS style)">
 					<label className="toggle-switch">
 						<input type="checkbox" checked={cornersEnabled} onChange={toggleCorners} />
 						<span className="slider"></span>

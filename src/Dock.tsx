@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, mem
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ChevronUp, ChevronLeft } from "lucide-react";
+import { ChevronUp, ChevronLeft, Mic, Video, MapPin } from "lucide-react";
 import "./Dock.css";
 import { EdgeSurface } from "./components/EdgeSurface";
 import { initTheme } from "./theme";
@@ -237,6 +237,48 @@ const Dock = memo(function Dock() {
 	const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
 	const [showSystemTray, setShowSystemTray] = useState(false);
 	const [allTrayApps, setAllTrayApps] = useState<TrayApp[]>([]);
+
+	// Language and privacy status
+	const [keyboardLang, setKeyboardLang] = useState<string>("EN");
+	const [privacyIndicators, setPrivacyIndicators] = useState<{
+		mic_active: boolean;
+		camera_active: boolean;
+		location_active: boolean;
+	}>({ mic_active: false, camera_active: false, location_active: false });
+
+	useEffect(() => {
+		let mounted = true;
+		const checkSys = async () => {
+			try {
+				const [lang, priv] = await Promise.all([
+					invoke<string>("get_keyboard_language").catch(() => "EN"),
+					invoke<{ mic_active: boolean; camera_active: boolean; location_active: boolean }>(
+						"get_privacy_indicators"
+					).catch(() => ({ mic_active: false, camera_active: false, location_active: false }))
+				]);
+				if (mounted) {
+					if (lang) setKeyboardLang(lang);
+					if (priv) setPrivacyIndicators(priv);
+				}
+			} catch (_) {}
+		};
+		checkSys();
+		const interval = setInterval(checkSys, 5000);
+		return () => {
+			mounted = false;
+			clearInterval(interval);
+		};
+	}, []);
+
+	const handleToggleLanguage = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		try {
+			const nextLang = await invoke<string>("toggle_keyboard_language");
+			if (nextLang) setKeyboardLang(nextLang);
+		} catch (err) {
+			console.error("Failed to switch keyboard layout:", err);
+		}
+	};
 
 	useEffect(() => {
 		const onResize = () => setViewportWidth(window.innerWidth);
@@ -752,15 +794,52 @@ const Dock = memo(function Dock() {
 		}
 	};
 
+	const showMultiWindowPreview = async (app: AppInfo) => {
+		const hwndsToCapture = app.all_hwnds || (app.hwnd ? [[app.hwnd, app.name]] : []);
+		const key = itemKey(app);
+		setHoveredApp(key);
+		try {
+			const results = await Promise.all(
+				hwndsToCapture.map(async ([hwnd, title]) => {
+					try {
+						const res = await invoke<[string, number] | null>("capture_window_thumbnail", {
+							hwnd,
+							maxWidth: 320,
+							maxHeight: 200
+						});
+						if (res) {
+							return { hwnd, title, image: res[0], lastFocused: res[1] };
+						}
+					} catch {}
+					return { hwnd, title, image: app.icon || "", lastFocused: 0 };
+				})
+			);
+			const captured = results
+				.sort((a, b) => b.lastFocused - a.lastFocused)
+				.map(({ hwnd, title, image }) => ({ hwnd, title, image }));
+
+			setPreviewData({ id: key, previews: captured });
+		} catch (e) {
+			console.error("Failed to show multi-window preview:", e);
+		}
+	};
+
 	const handleAppClick = async (app: AppInfo) => {
 		try {
+			invoke("dismiss_start_menu").catch(() => {});
 			if (app.path === "start") {
 				await invoke("open_app", { appName: "start" });
 			} else if (app.is_background && app.tray_ids?.length === 1) {
 				await invoke("activate_tray_icon", { trayId: app.tray_ids[0] });
 			} else if (app.all_hwnds && app.all_hwnds.length > 1) {
-				// Several windows: bring the most recent forward, then cycle.
-				await invoke("focus_app_windows", { hwnds: app.all_hwnds.map(([hwnd]) => hwnd) });
+				// Multiple windows: don't automatically focus one window.
+				// Display the previews so the user can choose which window to activate, exactly like Windows taskbar!
+				if (previewData && previewData.id === itemKey(app)) {
+					setPreviewData(null);
+					setHoveredApp(null);
+				} else {
+					await showMultiWindowPreview(app);
+				}
 			} else if (app.hwnd) {
 				await invoke("focus_window", { hwnd: app.hwnd });
 			} else {
@@ -1218,15 +1297,11 @@ const Dock = memo(function Dock() {
 										return { hwnd, title, image, lastFocused };
 									}
 								} catch {}
-								return null;
+								return { hwnd, title, image: app.icon || "", lastFocused: 0 };
 							})
 						);
 
 						const captured = results
-							.filter(
-								(r): r is { hwnd: number; title: string; image: string; lastFocused: number } =>
-									r !== null
-							)
 							.sort((a, b) => b.lastFocused - a.lastFocused)
 							.map(({ hwnd, title, image }) => ({ hwnd, title, image }));
 
@@ -1712,7 +1787,11 @@ const Dock = memo(function Dock() {
 																<div
 																	key={prev.hwnd}
 																	className="preview-item"
-																	onClick={() => invoke("focus_window", { hwnd: prev.hwnd })}
+																	onClick={() => {
+																		invoke("focus_window", { hwnd: prev.hwnd });
+																		setPreviewData(null);
+																		setHoveredApp(null);
+																	}}
 																>
 																	<img src={prev.image} alt={`Preview ${idx}`} />
 																	<div className="preview-label">{prev.title || app.name}</div>
@@ -1799,6 +1878,55 @@ const Dock = memo(function Dock() {
 										)}
 									</motion.div>
 								))}
+
+								{/* Privacy Indicators (if any active) */}
+								{(privacyIndicators.mic_active ||
+									privacyIndicators.camera_active ||
+									privacyIndicators.location_active) && (
+									<motion.div layout className="dock-privacy-cluster" title="Privacy Indicators">
+										{privacyIndicators.mic_active && (
+											<div className="dock-privacy-dot mic" title="Microphone in use">
+												<Mic size={11} />
+											</div>
+										)}
+										{privacyIndicators.camera_active && (
+											<div className="dock-privacy-dot camera" title="Camera in use">
+												<Video size={11} />
+											</div>
+										)}
+										{privacyIndicators.location_active && (
+											<div className="dock-privacy-dot location" title="Location in use">
+												<MapPin size={11} />
+											</div>
+										)}
+									</motion.div>
+								)}
+
+								{/* Language Indicator Button */}
+								<motion.div
+									layout
+									className="dock-icon-wrapper"
+									onContextMenu={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+									}}
+									onPointerDown={(e) => e.stopPropagation()}
+									onMouseDown={(e) => e.stopPropagation()}
+									onClick={handleToggleLanguage}
+								>
+									<div className="tooltip">{keyboardLang === "FA" ? "Persian (FA)" : "English (EN)"}</div>
+									<motion.div
+										className="dock-icon dock-lang-icon"
+										variants={iconVariants}
+										whileHover="hover"
+										whileTap="tap"
+										onPointerDown={(e) => e.stopPropagation()}
+										onMouseDown={(e) => e.stopPropagation()}
+										onClick={handleToggleLanguage}
+									>
+										<span className="dock-lang-text">{keyboardLang}</span>
+									</motion.div>
+								</motion.div>
 
 								{/* System Tray Toggle Button */}
 								<motion.div

@@ -75,7 +75,7 @@ fn from_power_status(status: &SYSTEM_POWER_STATUS) -> BatteryDetails {
     }
 }
 
-fn read_power_mode(plugged_in: bool) -> Option<&'static str> {
+pub fn read_power_mode(plugged_in: bool) -> Option<&'static str> {
     let value = if plugged_in {
         w!("ActiveOverlayAcPowerScheme")
     } else {

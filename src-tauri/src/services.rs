@@ -45,7 +45,7 @@ pub fn setup_keyboard_hook(app_handle: AppHandle) {
     std::thread::spawn(move || {
         // Exiting removes the hook with the process; never touch it mid-shutdown.
         while !SHUTTING_DOWN.load(Ordering::Relaxed) {
-            let wanted = NATIVE_TASKBAR_HIDDEN.load(Ordering::Relaxed) && dock_win_number_enabled();
+            let wanted = true;
             if wanted != (KEYBOARD_HOOK.load(Ordering::Relaxed) != 0) {
                 // A low-level hook runs on the thread that installed it, which
                 // needs a message loop, so install and remove it on the main thread.
@@ -163,12 +163,34 @@ fn emit_dock_win_number(index: u8) {
     });
 }
 
+/// Toggles the Notch open or collapsed globally from anywhere (desktop or fullscreen games).
+pub fn toggle_notch_global(app: AppHandle) {
+    let is_open = NOTCH_IS_OPEN.load(Ordering::Relaxed);
+    if is_open {
+        NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
+        let _ = app.emit("notch-collapse-outside", ());
+    } else {
+        if let Some(main_win) = app.get_webview_window("main") {
+            if let Ok(hwnd) = main_win.hwnd() {
+                set_click_through(hwnd, false);
+                re_assert_topmost(hwnd);
+                unsafe {
+                    let _ = windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow(hwnd);
+                }
+            }
+        }
+        let _ = app.emit("bloom-open-notch", ());
+    }
+}
+
 unsafe extern "system" fn keyboard_hook_proc(
     code: i32,
     wparam: windows::Win32::Foundation::WPARAM,
     lparam: windows::Win32::Foundation::LPARAM,
 ) -> windows::Win32::Foundation::LRESULT {
-    use windows::Win32::UI::Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_LWIN, VK_RWIN};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        GetAsyncKeyState, VIRTUAL_KEY, VK_CONTROL, VK_ESCAPE, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT, VK_SPACE,
+    };
     use windows::Win32::UI::WindowsAndMessaging::{
         KBDLLHOOKSTRUCT, LLKHF_INJECTED, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
     };
@@ -178,9 +200,19 @@ unsafe extern "system" fn keyboard_hook_proc(
         let is_down = wparam.0 == WM_KEYDOWN as usize || wparam.0 == WM_SYSKEYDOWN as usize;
         let is_up = wparam.0 == WM_KEYUP as usize || wparam.0 == WM_SYSKEYUP as usize;
 
-        // Only physical presses drive the Win+Number replacement; injected
-        // events (our own Start taps and mask key) must not re-enter it.
+        // Only physical presses drive shortcuts; injected events must not re-enter it.
         if (kb.flags.0 & LLKHF_INJECTED.0) == 0 {
+            // Fast close: Escape collapses notch when open
+            if is_down && vk_code == VK_ESCAPE {
+                if NOTCH_IS_OPEN.load(Ordering::Relaxed) {
+                    NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
+                    if let Some(app) = KEYBOARD_HOOK_APP_HANDLE.get().cloned() {
+                        let _ = app.emit("notch-collapse-outside", ());
+                    }
+                    return windows::Win32::Foundation::LRESULT(1);
+                }
+            }
+
             if vk_code == VK_LWIN || vk_code == VK_RWIN {
                 if is_down {
                     WIN_KEY_DOWN.store(true, Ordering::Relaxed);
@@ -461,6 +493,16 @@ unsafe extern "system" fn focus_event_proc(
         return;
     }
 
+    // When focus moves to another application while the notch is open, collapse the notch immediately!
+    if NOTCH_IS_OPEN.load(Ordering::Relaxed) {
+        NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
+        if let Some(app) = WINDOW_CHANGE_APP_HANDLE.get().cloned() {
+            std::thread::spawn(move || {
+                let _ = app.emit("notch-collapse-outside", ());
+            });
+        }
+    }
+
     let hwnd_raw = hwnd.0 as isize;
     if let Some(map) = crate::state::FOCUS_TIMESTAMPS.get() {
         if let Ok(mut guard) = map.lock() {
@@ -603,6 +645,16 @@ unsafe extern "system" fn thumbnail_capture_proc(
     windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(hwnd, Some(&mut pid));
     if pid == my_pid {
         return;
+    }
+
+    // When focus moves to another application while the notch is open, collapse the notch immediately!
+    if NOTCH_IS_OPEN.load(Ordering::Relaxed) {
+        NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
+        if let Some(app) = WINDOW_CHANGE_APP_HANDLE.get().cloned() {
+            std::thread::spawn(move || {
+                let _ = app.emit("notch-collapse-outside", ());
+            });
+        }
     }
 
     let mut text = [0u16; 512];
@@ -2539,29 +2591,38 @@ fn update_main_interaction(
     now: i64,
     fg_fs: bool,
 ) {
-    if fg_fs {
-        // Fullscreen foreground app or capture overlay: Bloom steps aside and
-        // any pending top-edge dwell is dropped.
-        MH_TOP_EDGE_ENTER_MS.store(0, Ordering::Relaxed);
-        MH_TOP_EDGE_ARMED.store(false, Ordering::Relaxed);
-        if let Some(main_win) = app_handle.get_webview_window("main") {
-            if let Ok(hwnd) = main_win.hwnd() {
-                if MH_LAST_MAIN_IGNORE.load(Ordering::Relaxed) != 1 {
-                    re_assert_topmost(hwnd);
+    let is_notch_open = NOTCH_IS_OPEN.load(Ordering::Relaxed);
+    let start_open = crate::commands::is_start_menu_open();
+    let effective_fs = fg_fs && !start_open;
+    let main_rect_val = MAIN_WINDOW_RECT.lock().ok().and_then(|g| *g);
+    if effective_fs && !is_notch_open {
+        let center_x = main_rect_val.map(|(p, s)| p.x + (s.width as i32) / 2).unwrap_or(960);
+        let in_top_center = cursor.y <= 4 && (cursor.x - center_x).abs() <= 160;
+
+        if !in_top_center {
+            // Fullscreen foreground app or capture overlay: Bloom steps aside and
+            // any pending top-edge dwell is dropped.
+            MH_TOP_EDGE_ENTER_MS.store(0, Ordering::Relaxed);
+            MH_TOP_EDGE_ARMED.store(false, Ordering::Relaxed);
+            if let Some(main_win) = app_handle.get_webview_window("main") {
+                if let Ok(hwnd) = main_win.hwnd() {
+                    if MH_LAST_MAIN_IGNORE.load(Ordering::Relaxed) != 1 {
+                        re_assert_topmost(hwnd);
+                    }
+                    set_click_through(hwnd, true);
                 }
-                set_click_through(hwnd, true);
+                MH_LAST_MAIN_IGNORE.store(1, Ordering::Relaxed);
             }
-            MH_LAST_MAIN_IGNORE.store(1, Ordering::Relaxed);
+            if MH_LAST_TOP_EDGE_HOVER.swap(0, Ordering::Relaxed) != 0 {
+                let _ = app_handle.emit("notch-edge-hover", false);
+            }
+            // Bloom is fully click-through here, so the webview cannot clear its
+            // own hover state; do it for it.
+            if NOTCH_IS_HOVERED.swap(false, Ordering::Relaxed) {
+                let _ = app_handle.emit("notch-pointer-left", ());
+            }
+            return;
         }
-        if MH_LAST_TOP_EDGE_HOVER.swap(0, Ordering::Relaxed) != 0 {
-            let _ = app_handle.emit("notch-edge-hover", false);
-        }
-        // Bloom is fully click-through here, so the webview cannot clear its
-        // own hover state; do it for it.
-        if NOTCH_IS_HOVERED.swap(false, Ordering::Relaxed) {
-            let _ = app_handle.emit("notch-pointer-left", ());
-        }
-        return;
     }
 
     let Some(main_win) = app_handle.get_webview_window("main") else {
@@ -2607,7 +2668,20 @@ fn update_main_interaction(
     let mut is_click_interactive = false;
     let main_rect_val = MAIN_WINDOW_RECT.lock().ok().and_then(|g| *g);
 
-    if let Some((win_pos, _)) = main_rect_val {
+    if let Some((win_pos, win_size)) = main_rect_val {
+        if is_notch_open {
+            let open_h = (450.0 * scale) as i32;
+            let open_w = (720.0 * scale) as i32;
+            let center_x = win_pos.x + (win_size.width as i32) / 2;
+            let rx = center_x - open_w / 2;
+            let rw = open_w;
+            let ry_top = win_pos.y;
+            let ry_bottom = win_pos.y + open_h;
+
+            if cursor.x >= rx && cursor.x <= (rx + rw) && cursor.y >= ry_top && cursor.y <= ry_bottom {
+                is_click_interactive = true;
+            }
+        }
         if let Ok(region) = NOTCH_RECT.try_lock() {
             if let Some(r) = *region {
                 let pad_x = (40.0 * scale) as i32;
@@ -2623,7 +2697,8 @@ fn update_main_interaction(
                 let rx = win_pos.x + (r.x as f64 * scale) as i32 - pad_x - hyst;
                 let rw = (r.width as f64 * scale) as i32 + (pad_x * 2) + (hyst * 2);
                 let ry_top = win_pos.y;
-                let ry_bottom = win_pos.y + (r.height as f64 * scale) as i32 + pad_y_bottom + hyst;
+                let effective_h = if is_notch_open { (r.height as f64).max(420.0) } else { r.height as f64 };
+                let ry_bottom = win_pos.y + (effective_h * scale) as i32 + pad_y_bottom + hyst;
 
                 let in_notch_rect = cursor.x >= rx
                     && cursor.x <= (rx + rw)
@@ -2645,7 +2720,7 @@ fn update_main_interaction(
                 let notch_visible = NOTCH_IS_VISIBLE.load(Ordering::Relaxed);
                 let hover_active =
                     is_notch_hovered || now < MH_TOPBAR_EXPIRY_MS.load(Ordering::Relaxed);
-                if (notch_visible || hover_active) && (in_notch_rect || in_top_span) {
+                if (notch_visible || hover_active || is_notch_open) && (in_notch_rect || in_top_span) {
                     is_click_interactive = true;
                 }
 
@@ -2710,6 +2785,13 @@ fn setup_top_edge_watchdog(app_handle: AppHandle) {
         let mut pt = windows::Win32::Foundation::POINT::default();
         if unsafe { windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut pt) }.is_err() {
             continue;
+        }
+        if NOTCH_IS_OPEN.load(Ordering::Relaxed) {
+            if let Some(main_win) = app_handle.get_webview_window("main") {
+                if let Ok(hwnd) = main_win.hwnd() {
+                    re_assert_topmost(hwnd);
+                }
+            }
         }
         let fg_fs = CURRENT_FOREGROUND_FULLSCREEN.load(Ordering::Relaxed);
         update_main_interaction(&app_handle, pt, now_ms(), fg_fs);
@@ -2980,7 +3062,47 @@ unsafe extern "system" fn mouse_hook_proc(
     // the press first, so it records whether Start was open for the click to
     // use. A cheap foreground check, and only on presses.
     if code >= 0 && wparam.0 == WM_LBUTTONDOWN as usize {
-        START_OPEN_AT_PRESS.store(crate::commands::is_start_menu_open(), Ordering::Relaxed);
+        let is_start_open = crate::commands::is_start_menu_open();
+        START_OPEN_AT_PRESS.store(is_start_open, Ordering::Relaxed);
+
+        let point = (*(lparam.0 as *const MSLLHOOKSTRUCT)).pt;
+        let takes_press = notch_takes_press(point);
+        let center_x = MAIN_WINDOW_RECT.lock().ok().and_then(|g| *g).map(|(p, s)| p.x + (s.width as i32) / 2).unwrap_or(960);
+        let is_top_center_hit = point.y <= 16 && (point.x - center_x).abs() <= 160;
+
+        if takes_press || is_top_center_hit {
+            let is_open = NOTCH_IS_OPEN.load(Ordering::Relaxed);
+            if !is_open {
+                NOTCH_IS_OPEN.store(true, Ordering::Relaxed);
+                // Click on the collapsed notch pill: expand it, dismiss Start menu if present,
+                // bring window topmost and to foreground, and notify the frontend.
+                if let Some(app) = WINDOW_CHANGE_APP_HANDLE.get().cloned() {
+                    let app_clone = app.clone();
+                    std::thread::spawn(move || {
+                        if let Some(main_win) = app_clone.get_webview_window("main") {
+                            if let Ok(hwnd) = main_win.hwnd() {
+                                set_click_through(hwnd, false);
+                                re_assert_topmost(hwnd);
+                                unsafe {
+                                    use windows::Win32::UI::WindowsAndMessaging::{
+                                        GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+                                        SetForegroundWindow, BringWindowToTop,
+                                    };
+                                    let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
+                                    let new_ex = ex & !(WS_EX_NOACTIVATE.0 as usize);
+                                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex as isize);
+                                    let _ = SetForegroundWindow(hwnd);
+                                    let _ = BringWindowToTop(hwnd);
+                                }
+                            }
+                        }
+                        let _ = app_clone.emit("bloom-open-notch", ());
+                    });
+                }
+                // Swallow the click so it never falls through to an underlying fullscreen app or desktop!
+                return windows::Win32::Foundation::LRESULT(1);
+            }
+        }
     }
     // A dock menu or the Add App popup closes when you press outside it. The
     // dock window's region keeps it from catching that press, so the dock
@@ -3007,7 +3129,7 @@ unsafe extern "system" fn mouse_hook_proc(
         && NOTCH_IS_OPEN.load(Ordering::Relaxed)
     {
         let point = (*(lparam.0 as *const MSLLHOOKSTRUCT)).pt;
-        if !notch_takes_press(point) && !point_in_dock(point) {
+        if !notch_takes_press(point) {
             NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
             if let Some(app) = WINDOW_CHANGE_APP_HANDLE.get().cloned() {
                 std::thread::spawn(move || {
@@ -3016,23 +3138,38 @@ unsafe extern "system" fn mouse_hook_proc(
             }
         }
     }
+
     CallNextHookEx(None, code, wparam, lparam)
 }
 
 /// Whether a screen point is within the notch bounds (expanded or resting).
 unsafe fn notch_takes_press(point: windows::Win32::Foundation::POINT) -> bool {
     let main_rect_val = MAIN_WINDOW_RECT.lock().ok().and_then(|g| *g);
-    if let Some((win_pos, _)) = main_rect_val {
+    if let Some((win_pos, win_size)) = main_rect_val {
+        let is_open = NOTCH_IS_OPEN.load(Ordering::Relaxed);
+        let scale = MH_CACHED_SCALE.load(Ordering::Relaxed) as f64 / 100.0;
+        let scale = if scale <= 0.0 { 1.0 } else { scale };
+        if is_open {
+            let open_h = (450.0 * scale) as i32;
+            let open_w = (720.0 * scale) as i32;
+            let center_x = win_pos.x + (win_size.width as i32) / 2;
+            let rx = center_x - open_w / 2;
+            let rw = open_w;
+            let ry_top = win_pos.y.min(0);
+            let ry_bottom = win_pos.y + open_h;
+            if point.x >= rx && point.x <= (rx + rw) && point.y >= ry_top && point.y <= ry_bottom {
+                return true;
+            }
+        }
         if let Ok(region) = NOTCH_RECT.lock() {
             if let Some(r) = *region {
-                let scale = MH_CACHED_SCALE.load(Ordering::Relaxed) as f64 / 100.0;
-                let scale = if scale <= 0.0 { 1.0 } else { scale };
                 let pad_x = (30.0 * scale) as i32;
                 let pad_y_bottom = (20.0 * scale) as i32;
                 let rx = win_pos.x + (r.x as f64 * scale) as i32 - pad_x;
                 let rw = (r.width as f64 * scale) as i32 + (pad_x * 2);
                 let ry_top = win_pos.y.min(0);
-                let ry_bottom = win_pos.y + (r.height as f64 * scale) as i32 + pad_y_bottom;
+                let effective_h = if is_open { (r.height as f64).max(420.0) } else { r.height as f64 };
+                let ry_bottom = win_pos.y + (effective_h * scale) as i32 + pad_y_bottom;
 
                 if point.x >= rx && point.x <= (rx + rw) && point.y >= ry_top && point.y <= ry_bottom {
                     return true;
@@ -3669,9 +3806,9 @@ pub fn register_appbar(window: tauri::WebviewWindow) {
                 WS_EX_TOOLWINDOW,
             };
 
-            // Set styles first
+            // Set styles first (main notch is a ToolWindow, NOT NoActivate so inputs take focus)
             let mut ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
-            ex_style |= (WS_EX_TOOLWINDOW.0 | WS_EX_NA.0) as usize;
+            ex_style = (ex_style | (WS_EX_TOOLWINDOW.0 as usize)) & !(WS_EX_NA.0 as usize);
             let _ = SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style as isize);
 
             let mut abd = APPBARDATA {
@@ -3782,6 +3919,9 @@ fn set_main_appbar_reservation(main_win: tauri::WebviewWindow, reserve: bool) {
         unregister_appbar_native(hwnd);
         MAIN_APPBAR_REGISTERED.store(false, Ordering::Relaxed);
         re_assert_topmost(hwnd);
+        if !main_win.is_visible().unwrap_or(false) {
+            let _ = main_win.show();
+        }
     }
 }
 

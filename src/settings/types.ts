@@ -5,7 +5,15 @@ export interface WidgetConfig {
 	right: string[];
 }
 
-export type SettingsTab = "general" | "appearance" | "notch" | "dock" | "overlays" | "about";
+export type SettingsTab =
+	| "general"
+	| "appearance"
+	| "notch"
+	| "notifications"
+	| "dock"
+	| "hotkeys"
+	| "overlays"
+	| "about";
 
 export interface SettingRowProps {
 	icon: ComponentType<SVGProps<SVGSVGElement> & { size?: number; strokeWidth?: number }>;

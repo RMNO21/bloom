@@ -43,8 +43,13 @@ pub async fn set_notch_visible(visible: bool) {
 }
 
 #[tauri::command]
-pub fn set_notch_is_open(open: bool) {
+pub fn set_notch_is_open(app: AppHandle, open: bool) {
     crate::state::NOTCH_IS_OPEN.store(open, Ordering::Relaxed);
+    if open {
+        focus_notch_input(app, true);
+    } else {
+        focus_notch_input(app, false);
+    }
 }
 
 #[tauri::command]
@@ -557,7 +562,7 @@ const START_TOGGLE_DEBOUNCE_MS: i64 = 80;
 /// A zero-length tap is dropped by the shell and never opens Start.
 const START_WIN_KEY_HOLD_MS: u64 = 40;
 
-fn send_key_tap(vk: windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY, hold_ms: u64) {
+pub fn send_key_tap(vk: windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY, hold_ms: u64) {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
         SendInput, INPUT, INPUT_0, KEYBDINPUT, KEYEVENTF_KEYUP,
     };
@@ -668,10 +673,36 @@ fn toggle_start_menu() {
 }
 
 #[tauri::command]
+pub fn dismiss_start_menu(app: AppHandle) {
+    if is_start_menu_open() {
+        if let Some(win) = app.get_webview_window("main") {
+            if let Ok(hwnd) = win.hwnd() {
+                unsafe {
+                    use windows::Win32::UI::WindowsAndMessaging::{
+                        GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+                        SetForegroundWindow, BringWindowToTop,
+                    };
+                    let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
+                    let new_ex = ex & !(WS_EX_NOACTIVATE.0 as usize);
+                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex as isize);
+                    let _ = SetForegroundWindow(hwnd);
+                    let _ = BringWindowToTop(hwnd);
+                }
+            }
+        }
+    }
+}
+
+#[tauri::command]
 pub async fn open_app(app: AppHandle, app_name: String) {
     if app_name == "start" {
         toggle_start_menu();
         return;
+    }
+
+    if is_start_menu_open() {
+        use windows::Win32::UI::Input::KeyboardAndMouse::VK_ESCAPE;
+        send_key_tap(VK_ESCAPE, 0);
     }
 
     if is_bloom_launch_target(&app_name, &app.config().identifier) {
@@ -825,7 +856,7 @@ fn launch_path_with_verb(path: &str, verb: &str) {
     }
 }
 
-fn launch_path(path: &str) {
+pub fn launch_path(path: &str) {
     launch_path_with_verb(path, "open");
 }
 
@@ -2049,6 +2080,64 @@ pub fn load_todos(app: AppHandle) -> Result<serde_json::Value, String> {
     Ok(todos)
 }
 
+#[tauri::command]
+pub fn save_notes(app: AppHandle, notes: serde_json::Value) -> Result<(), String> {
+    let path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?
+        .join("notes.json");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_vec_pretty(&notes).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_file(&path, &content)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_notes(app: AppHandle) -> Result<serde_json::Value, String> {
+    let path = match app.path().app_config_dir() {
+        Ok(p) => p.join("notes.json"),
+        Err(_) => return Ok(serde_json::Value::Null),
+    };
+    if !path.exists() {
+        return Ok(serde_json::Value::Null);
+    }
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let notes: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(notes)
+}
+
+#[tauri::command]
+pub fn save_alarms(app: AppHandle, alarms: serde_json::Value) -> Result<(), String> {
+    let path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?
+        .join("alarms.json");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_vec_pretty(&alarms).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_file(&path, &content)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_alarms(app: AppHandle) -> Result<serde_json::Value, String> {
+    let path = match app.path().app_config_dir() {
+        Ok(p) => p.join("alarms.json"),
+        Err(_) => return Ok(serde_json::Value::Null),
+    };
+    if !path.exists() {
+        return Ok(serde_json::Value::Null);
+    }
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let alarms: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(alarms)
+}
+
 /// Apps pinned while running were saved under their executable's name
 /// ("WhatsApp.Root", "localsend_app"). Gives those their Start menu name, once
 /// the installed-apps scan has results: the dock loads its pins again when the
@@ -2328,21 +2417,38 @@ pub fn focus_notch_input(app: AppHandle, focus: bool) {
             unsafe {
                 use windows::Win32::UI::WindowsAndMessaging::{
                     GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
-                    SetForegroundWindow,
+                    SetForegroundWindow, BringWindowToTop, GetForegroundWindow,
+                    GetWindowThreadProcessId,
                 };
+                use windows::Win32::System::Threading::GetCurrentThreadId;
+
+                extern "system" {
+                    fn AttachThreadInput(idattach: u32, idattachto: u32, fattach: i32) -> i32;
+                    fn AllowSetForegroundWindow(dwprocessid: u32) -> i32;
+                }
+
                 let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
-                if focus {
-                    let new_ex = ex & !(WS_EX_NOACTIVATE.0 as usize);
-                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex as isize);
-                    let _ = SetForegroundWindow(hwnd);
-                } else {
-                    let new_ex = ex | (WS_EX_NOACTIVATE.0 as usize);
+                let new_ex = ex & !(WS_EX_NOACTIVATE.0 as usize);
+                if new_ex != ex {
                     SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex as isize);
                 }
+
+                if focus {
+                    let _ = AllowSetForegroundWindow(u32::MAX); // ASFW_ANY
+                    let fg_hwnd = GetForegroundWindow();
+                    let fg_thread = GetWindowThreadProcessId(fg_hwnd, None);
+                    let cur_thread = GetCurrentThreadId();
+                    if fg_thread != 0 && fg_thread != cur_thread {
+                        let _ = AttachThreadInput(cur_thread, fg_thread, 1);
+                        let _ = SetForegroundWindow(hwnd);
+                        let _ = BringWindowToTop(hwnd);
+                        let _ = AttachThreadInput(cur_thread, fg_thread, 0);
+                    } else {
+                        let _ = SetForegroundWindow(hwnd);
+                        let _ = BringWindowToTop(hwnd);
+                    }
+                }
             }
-        }
-        if focus {
-            let _ = win.set_focus();
         }
     }
 }
@@ -2425,6 +2531,23 @@ pub fn open_sound_settings() {
             Some(HWND(std::ptr::null_mut())),
             windows::core::PCSTR(c"open".as_ptr() as *const u8),
             windows::core::PCSTR(c"ms-settings:sound".as_ptr() as *const u8),
+            windows::core::PCSTR::null(),
+            windows::core::PCSTR::null(),
+            SW_SHOWNORMAL,
+        );
+    }
+}
+
+#[tauri::command]
+pub fn open_display_settings() {
+    unsafe {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::Shell::ShellExecuteA;
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+        let _ = ShellExecuteA(
+            Some(HWND(std::ptr::null_mut())),
+            windows::core::PCSTR(c"open".as_ptr() as *const u8),
+            windows::core::PCSTR(c"ms-settings:display".as_ptr() as *const u8),
             windows::core::PCSTR::null(),
             windows::core::PCSTR::null(),
             SW_SHOWNORMAL,
@@ -3568,19 +3691,86 @@ pub fn set_brightness(app: AppHandle, brightness: u32) {
 
 #[tauri::command]
 pub async fn get_battery_saver_state() -> Result<bool, String> {
-    // Uses Windows Runtime PowerManager — no PowerShell required.
     tauri::async_runtime::spawn_blocking(|| {
         unsafe {
+            use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
+            let mut status = SYSTEM_POWER_STATUS::default();
+            if GetSystemPowerStatus(&mut status).is_ok() {
+                if status.SystemStatusFlag == 1 {
+                    return Ok(true);
+                }
+            }
+
             let _ = windows::Win32::System::Com::CoInitializeEx(
                 None,
                 windows::Win32::System::Com::COINIT_MULTITHREADED,
             );
+            use windows::System::Power::{EnergySaverStatus, PowerManager};
+            if let Ok(st) = PowerManager::EnergySaverStatus() {
+                if st == EnergySaverStatus::On {
+                    return Ok(true);
+                }
+            }
+
+            // Check effective overlay scheme from powrprof.dll
+            use windows::core::GUID;
+            type PowerGetEffectiveOverlaySchemeFn = unsafe extern "system" fn(*mut GUID) -> u32;
+            use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+            use windows::core::w;
+            if let Ok(h_module) = LoadLibraryW(w!("powrprof.dll")) {
+                if let Some(get_overlay) = GetProcAddress(
+                    h_module,
+                    windows::core::PCSTR(c"PowerGetEffectiveOverlayScheme".as_ptr() as *const u8),
+                ) {
+                    let get_overlay_fn: PowerGetEffectiveOverlaySchemeFn = std::mem::transmute(get_overlay);
+                    let mut eff_guid = GUID::zeroed();
+                    if get_overlay_fn(&mut eff_guid) == 0 {
+                        let energy_saver_overlay = GUID::from_u128(0x961cc777_2547_4f9d_8174_7d86181b8a7a);
+                        if eff_guid == energy_saver_overlay {
+                            return Ok(true);
+                        }
+                    }
+                }
+            }
+
+            let mode = crate::battery::read_power_mode(status.ACLineStatus == 1);
+            if mode == Some("Best power efficiency") {
+                return Ok(true);
+            }
+
+            Ok(false)
         }
-        use windows::System::Power::{EnergySaverStatus, PowerManager};
-        match PowerManager::EnergySaverStatus() {
-            Ok(status) => Ok(status == EnergySaverStatus::On),
-            Err(_) => Ok(false), // No battery / not supported on this device
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn set_battery_saver_state(enabled: bool) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use windows::core::GUID;
+        type PowerSetActiveOverlaySchemeFn = unsafe extern "system" fn(*const GUID) -> u32;
+
+        unsafe {
+            use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+            use windows::core::w;
+            if let Ok(h_module) = LoadLibraryW(w!("powrprof.dll")) {
+                if let Some(set_overlay) = GetProcAddress(
+                    h_module,
+                    windows::core::PCSTR(c"PowerSetActiveOverlayScheme".as_ptr() as *const u8),
+                ) {
+                    let set_overlay_fn: PowerSetActiveOverlaySchemeFn = std::mem::transmute(set_overlay);
+                    let overlay_guid = if enabled {
+                        GUID::from_u128(0x961cc777_2547_4f9d_8174_7d86181b8a7a)
+                    } else {
+                        GUID::zeroed()
+                    };
+                    let _ = set_overlay_fn(&overlay_guid);
+                }
+            }
         }
+
+        Ok(enabled)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -4639,3 +4829,32 @@ pub async fn activate_tray_icon(tray_id: String) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?
 }
+
+#[tauri::command]
+pub fn frontend_debug(msg: String) {
+    let log_path = r"C:\Users\User\.gemini\antigravity\brain\30653cb6-647b-438a-8b6c-bbc302688951\scratch\notif_engine.log";
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(log_path) {
+        use std::io::Write;
+        let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
+        let _ = writeln!(f, "[{}] [FRONTEND] {}", ts, msg);
+        let _ = f.flush();
+    }
+    println!("[Frontend-Debug] {}", msg);
+}
+
+#[tauri::command]
+pub fn set_windows_toast_suppression_cmd(suppress: bool) {
+    crate::notifications::set_windows_toast_suppression(suppress);
+}
+
+#[tauri::command]
+pub fn set_taskbar_visibility_cmd(visible: bool) {
+    let _ = crate::utils::set_taskbar_visibility(visible, visible);
+    crate::state::NATIVE_TASKBAR_HIDDEN.store(!visible, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[tauri::command]
+pub fn clear_notification_history_cmd() {
+    crate::notifications::clear_all_notifications();
+}
+

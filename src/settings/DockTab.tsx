@@ -18,7 +18,10 @@ import {
 	FolderOpen,
 	FolderPlus,
 	Plus,
-	X
+	X,
+	Sliders,
+	ShieldCheck,
+	MoveHorizontal
 } from "lucide-react";
 import { SettingRow } from "./SettingRow";
 import {
@@ -118,6 +121,18 @@ interface DockTabProps {
 	toggleDockAdaptive: () => void;
 	dockWinNumberEnabled: boolean;
 	toggleDockWinNumber: () => void;
+	dockIconSize?: number;
+	handleDockIconSizeChange?: (val: number) => void;
+	dockMagnification?: boolean;
+	toggleDockMagnification?: () => void;
+	dockMagScale?: number;
+	handleDockMagScaleChange?: (val: number) => void;
+	dockIndicatorStyle?: string;
+	handleDockIndicatorStyleChange?: (val: string) => void;
+	dockPosition?: string;
+	handleDockPositionChange?: (val: string) => void;
+	dockHideTaskbar?: boolean;
+	toggleDockHideTaskbar?: () => void;
 	dockExtrasPosition: string;
 	handleDockExtrasPositionChange: (position: string) => void;
 	dockExtrasDrives: boolean;
@@ -154,6 +169,18 @@ export function DockTab({
 	toggleDockAdaptive,
 	dockWinNumberEnabled,
 	toggleDockWinNumber,
+	dockIconSize = 44,
+	handleDockIconSizeChange,
+	dockMagnification = true,
+	toggleDockMagnification,
+	dockMagScale = 1.25,
+	handleDockMagScaleChange,
+	dockIndicatorStyle = "dot",
+	handleDockIndicatorStyleChange,
+	dockPosition = "center",
+	handleDockPositionChange,
+	dockHideTaskbar = true,
+	toggleDockHideTaskbar,
 	dockExtrasPosition,
 	handleDockExtrasPositionChange,
 	dockExtrasDrives,
@@ -196,6 +223,102 @@ export function DockTab({
 
 				{dockEnabled && (
 					<>
+						<SettingRow
+							icon={Sliders}
+							label="Dock Icon Size"
+							desc={`Size of app icons in the dock (${dockIconSize}px)`}
+						>
+							<input
+								type="range"
+								min="32"
+								max="64"
+								step="2"
+								value={dockIconSize}
+								onChange={(e) => handleDockIconSizeChange?.(parseInt(e.target.value))}
+								className="settings-slider"
+							/>
+						</SettingRow>
+
+						<SettingRow
+							icon={Maximize2}
+							label="Hover Magnification"
+							desc="Smoothly zoom and enlarge app icons under cursor (macOS style)"
+						>
+							<label className="toggle-switch">
+								<input
+									type="checkbox"
+									checked={dockMagnification}
+									onChange={toggleDockMagnification}
+								/>
+								<span className="slider"></span>
+							</label>
+						</SettingRow>
+
+						{dockMagnification && (
+							<SettingRow
+								icon={Sliders}
+								label="Magnification Scale"
+								desc={`Zoom scale multiplier on cursor hover (${dockMagScale.toFixed(2)}x)`}
+							>
+								<input
+									type="range"
+									min="1.05"
+									max="1.5"
+									step="0.05"
+									value={dockMagScale}
+									onChange={(e) => handleDockMagScaleChange?.(parseFloat(e.target.value))}
+									className="settings-slider"
+								/>
+							</SettingRow>
+						)}
+
+						<SettingRow
+							icon={MoveHorizontal}
+							label="Dock Alignment"
+							desc="Position of the dock along the bottom screen edge"
+						>
+							<select
+								className="settings-select"
+								value={dockPosition}
+								onChange={(e) => handleDockPositionChange?.(e.target.value)}
+							>
+								<option value="center">Center</option>
+								<option value="left">Left Aligned</option>
+								<option value="right">Right Aligned</option>
+							</select>
+						</SettingRow>
+
+						<SettingRow
+							icon={ShieldCheck}
+							label="Auto-Hide Native Taskbar"
+							desc="Automatically suppress Windows taskbar on boot so only Bloom Dock is visible"
+						>
+							<label className="toggle-switch">
+								<input
+									type="checkbox"
+									checked={dockHideTaskbar}
+									onChange={toggleDockHideTaskbar}
+								/>
+								<span className="slider"></span>
+							</label>
+						</SettingRow>
+
+						<SettingRow
+							icon={Circle}
+							label="Running Indicator Style"
+							desc="Visual dot or line beneath running applications"
+						>
+							<select
+								className="settings-select"
+								value={dockIndicatorStyle}
+								onChange={(e) => handleDockIndicatorStyleChange?.(e.target.value)}
+							>
+								<option value="dot">Glowing Dot</option>
+								<option value="bar">Subtle Bar</option>
+								<option value="none">Hidden</option>
+							</select>
+						</SettingRow>
+
 						<SettingRow
 							icon={dockMode === "fixed" ? EyeOff : Eye}
 							label="Behavior"

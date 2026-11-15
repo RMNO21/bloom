@@ -4,9 +4,6 @@
   "version": "3.10.1",
   "identifier": "com.sehaz.bloom",
   "build": {
-    "beforeDevCommand": "bun run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -26,7 +23,7 @@
         "closable": false,
         "alwaysOnTop": true,
         "visibleOnAllWorkspaces": true,
-        "focus": false,
+        "focus": true,
         "skipTaskbar": true,
         "shadow": false,
         "visible": false,
@@ -104,7 +101,7 @@
     "createUpdaterArtifacts": true,
     "targets": "all",
     "publisher": "Sehajveer Singh",
-    "copyright": "Copyright © 2026 Sehajveer Singh",
+    "copyright": "Copyright \u00a9 2026 Sehajveer Singh",
     "category": "Utility",
     "shortDescription": "A notch and dock for Windows",
     "longDescription": "Bloom replaces the Windows taskbar with a dock and adds a notch for media, quick controls and status.",

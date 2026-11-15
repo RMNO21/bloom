@@ -282,6 +282,119 @@ pub fn restore_taskbar_after_crash() {
     set_taskbar_visibility(true, true);
 }
 
+pub fn set_stuckrects3_autohide(autohide: bool) {
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
+        KEY_READ, KEY_WRITE, REG_BINARY,
+    };
+    unsafe {
+        let key_path = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StuckRects3\0"
+            .encode_utf16()
+            .collect::<Vec<u16>>();
+        let val_name = "Settings\0".encode_utf16().collect::<Vec<u16>>();
+        let mut hkey = HKEY::default();
+        if RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            windows::core::PCWSTR(key_path.as_ptr()),
+            Some(0),
+            KEY_READ | KEY_WRITE,
+            &mut hkey,
+        )
+        .is_ok()
+        {
+            let mut buf = [0u8; 128];
+            let mut buf_len = buf.len() as u32;
+            let mut val_type = REG_BINARY;
+            if RegQueryValueExW(
+                hkey,
+                windows::core::PCWSTR(val_name.as_ptr()),
+                None,
+                Some(&mut val_type),
+                Some(buf.as_mut_ptr()),
+                Some(&mut buf_len),
+            )
+            .is_ok()
+                && buf_len >= 9
+            {
+                let target_byte = if autohide { 0x03 } else { 0x02 };
+                if buf[8] != target_byte {
+                    buf[8] = target_byte;
+                    let _ = RegSetValueExW(
+                        hkey,
+                        windows::core::PCWSTR(val_name.as_ptr()),
+                        None,
+                        REG_BINARY,
+                        Some(&buf[..buf_len as usize]),
+                    );
+                }
+            }
+            let _ = RegCloseKey(hkey);
+        }
+    }
+}
+
+pub fn ensure_priority_startup() {
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegDeleteValueW, RegOpenKeyExW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
+        KEY_ALL_ACCESS, REG_SZ,
+    };
+    unsafe {
+        let run_key_path = "Software\\Microsoft\\Windows\\CurrentVersion\\Run\0"
+            .encode_utf16()
+            .collect::<Vec<u16>>();
+        let mut hkey = HKEY::default();
+        if RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            windows::core::PCWSTR(run_key_path.as_ptr()),
+            Some(0),
+            KEY_ALL_ACCESS,
+            &mut hkey,
+        )
+        .is_ok()
+        {
+            let priority_val_name = "!0_Bloom\0".encode_utf16().collect::<Vec<u16>>();
+            let exe_path = match std::env::current_exe() {
+                Ok(p) => format!("\"{}\" --boot\0", p.to_string_lossy()),
+                Err(_) => "\"C:\\Users\\User\\AppData\\Local\\bloom\\bloom.exe\" --boot\0".to_string(),
+            };
+            let exe_utf16 = exe_path.encode_utf16().collect::<Vec<u16>>();
+            let _ = RegSetValueExW(
+                hkey,
+                windows::core::PCWSTR(priority_val_name.as_ptr()),
+                None,
+                REG_SZ,
+                Some(std::slice::from_raw_parts(
+                    exe_utf16.as_ptr() as *const u8,
+                    exe_utf16.len() * 2,
+                )),
+            );
+
+            // Clean up legacy low-priority 'bloom' entry from Run
+            let old_val_name = "bloom\0".encode_utf16().collect::<Vec<u16>>();
+            let _ = RegDeleteValueW(hkey, windows::core::PCWSTR(old_val_name.as_ptr()));
+            let _ = RegCloseKey(hkey);
+        }
+
+        // Also place a launcher script in user's Startup folder for instant concurrent launch at logon
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            let startup_dir = std::path::PathBuf::from(appdata)
+                .join("Microsoft\\Windows\\Start Menu\\Programs\\Startup");
+            if startup_dir.is_dir() {
+                let vbs_file = startup_dir.join("BloomLauncher.vbs");
+                let exe_target = match std::env::current_exe() {
+                    Ok(p) => p.to_string_lossy().to_string(),
+                    Err(_) => "C:\\Users\\User\\AppData\\Local\\bloom\\bloom.exe".to_string(),
+                };
+                let content = format!(
+                    "Set WshShell = CreateObject(\"WScript.Shell\")\r\nWshShell.Run \"\"\"{}\"\" --boot\", 0, False\r\n",
+                    exe_target
+                );
+                let _ = std::fs::write(vbs_file, content);
+            }
+        }
+    }
+}
+
 pub fn secondary_taskbar_windows() -> Vec<windows::Win32::Foundation::HWND> {
     use windows::core::BOOL;
     use windows::Win32::Foundation::{HWND, LPARAM};
@@ -513,6 +626,7 @@ pub fn set_taskbar_visibility(visible: bool, always_on_top: bool) -> bool {
             ..Default::default()
         };
         SHAppBarMessage(ABM_SETSTATE, &mut abd);
+        set_stuckrects3_autohide(!visible);
 
         // 2. Control visibility of the primary taskbar
         let mut primary_positioned = true;
@@ -1360,10 +1474,55 @@ pub fn re_assert_topmost(hwnd: HWND) {
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOSENDCHANGING,
         );
         // Re-stamp NOACTIVATE + TOOLWINDOW — HWND_TOPMOST can cause these to be reset
-        // by the shell on some Windows builds
+        // by the shell on some Windows builds. If the notch is open, do NOT set NOACTIVATE
+        // so that inputs and controls receive direct Windows focus and keystrokes.
+        let main_hwnd = crate::state::MAIN_HWND.load(std::sync::atomic::Ordering::Relaxed);
+        let is_main = main_hwnd != 0 && hwnd.0 as isize == main_hwnd;
+
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
-        let new_ex = ex | WS_EX_NOACTIVATE.0 as usize | WS_EX_TOOLWINDOW.0 as usize;
+        let mut new_ex = ex | (WS_EX_TOOLWINDOW.0 as usize);
+        if is_main {
+            new_ex &= !(WS_EX_NOACTIVATE.0 as usize);
+        } else {
+            new_ex |= WS_EX_NOACTIVATE.0 as usize;
+        }
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex as isize);
+        strip_window_decorations(hwnd);
+    }
+}
+
+/// Strip WS_CAPTION, WS_BORDER and force DWMWA_BORDER_COLOR to none so Windows 11 DWM
+/// never renders any accent color outline/box around transparent Bloom windows.
+pub fn strip_window_decorations(hwnd: HWND) {
+    unsafe {
+        use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_STYLE, SWP_FRAMECHANGED,
+            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_BORDER, WS_CAPTION,
+            WS_DLGFRAME, WS_POPUP, WS_THICKFRAME,
+        };
+        let style = GetWindowLongPtrW(hwnd, GWL_STYLE) as u32;
+        let unwanted = (WS_CAPTION.0 | WS_BORDER.0 | WS_DLGFRAME.0 | WS_THICKFRAME.0) as u32;
+        let new_style = (style & !unwanted) | WS_POPUP.0;
+        if new_style != style {
+            let _ = SetWindowLongPtrW(hwnd, GWL_STYLE, new_style as isize);
+        }
+        let color_none = 0xFFFFFFFEu32;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            &color_none as *const _ as *const _,
+            std::mem::size_of::<u32>() as u32,
+        );
+        let _ = SetWindowPos(
+            hwnd,
+            None,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        );
     }
 }
 

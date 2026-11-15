@@ -5,172 +5,129 @@
   width="72"
 />
 
-# Bloom
+# Bloom Alternative by RMNO21
+
+**An enhanced, deeply customizable desktop companion for Windows.**
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Built with Tauri](https://img.shields.io/badge/Built%20with-Tauri%20v2-orange.svg)](https://tauri.app/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010-0078D4.svg)](https://www.microsoft.com/windows)
+[![Author](https://img.shields.io/badge/Author-RMNO21-blueviolet.svg)](https://github.com/RMNO21)
+[![Original Project](https://img.shields.io/badge/Based%20On-Bloom%20by%20SehajveerSingh2005-green.svg)](https://github.com/SehajveerSingh2005/bloom)
 
 <br/>
 
-<!-- HERO SHOWCASE — full-width cinematic shot or video -->
-<!-- ![Hero](your-hero-url) -->
 <img width="1920" height="1080" alt="Bloom Hero" src="https://github.com/user-attachments/assets/22041f25-a69e-457d-80d9-7dfbfbed2d29" />
-
-<video width="1920" height="1080" src="https://github.com/user-attachments/assets/fa7f949b-d9c3-4a92-b00d-e1132c0f3ff1">
 
 </div>
 
 ---
 
-Bloom makes your Windows desktop feel alive.
+## 🌟 Credits & Attribution
 
-Every transition is a physics simulation.
-Every element responds to touch.
-Every pixel is in motion.
+This project is an advanced, customized edition and fork of **Bloom**, originally developed and created by **[Sehajveer Singh (@SehajveerSingh2005)](https://github.com/SehajveerSingh2005)**.
 
-Your desktop has been asleep for years.
-This wakes it up.
+* **Author of this Alternative Edition:** [Raman Tondro (@RMNO21)](https://github.com/RMNO21)
+* **Original Project & Repository:** [SehajveerSingh2005/bloom](https://github.com/SehajveerSingh2005/bloom)
+* **License:** Licensed under the [GNU General Public License v3.0 (GPLv3)](LICENSE). All original copyright notices and open-source licenses are preserved.
 
----
-
-## The Island
-
-<!-- SHOWCASE: GIF or short clip — Island expanding, cycling through modes (3-5s) -->
-<!-- ![Island Demo](your-island-gif-url) -->
-
-<p align="center">
-  <img width="430" height="70" alt="Bloom Island" src="https://github.com/user-attachments/assets/0d723558-9df4-4214-b20e-4a1f97eb1f22" />
-</p>
-
-A notch at the top of your screen that adapts to what you're doing.
-
-Scroll or swipe to switch modes.
-Watch it transform.
-
-**Music** — album art, track info, playback controls. A visualizer that reacts to five frequency bands with spring physics. It moves when the music plays.
-
-<!-- SHOWCASE: GIF — music mode reacting to a song -->
-<!-- ![Music Visualizer](your-music-gif-url) -->
-
-**Command Center** — WiFi, Bluetooth, Do Not Disturb, volume, brightness. Everything you usually dig through settings for.
-
-<!-- SHOWCASE: GIF — command center toggling controls -->
-<!-- ![Command Center](your-command-center-gif-url) -->
-
-**Status** — Battery, weather. Your desktop, summarized.
-
-**Calendar** — A month view with a Pomodoro timer. Focus without switching apps.
-
-Each transition is spring-loaded.
-Width, height, border-radius, position — all animate independently.
-It feels mechanical. In a good way.
+Sincere appreciation to Sehajveer Singh and all original contributors for creating the initial vision and architecture of the Dynamic Island and Dock. This alternative edition builds upon that great foundation by introducing universal Windows notification interception, interactive droplet animations, inline quick reply, zero-shadow minimalist styling, comprehensive system settings overhaul, and deep Windows shell stability improvements.
 
 ---
 
-## The Dock
+## 🚀 What Makes This Alternative Edition Unique?
 
-<!-- SHOWCASE: GIF — dock appearing on hover, drag-reorder, window previews -->
-<!-- ![Dock Demo](your-dock-gif-url) -->
+### 💧 1. Universal Notification Droplet Engine
+* **Universal WinRT Interception:** Integrates directly with Windows `UserNotificationListener` to capture notifications from all applications (Telegram, WhatsApp, Discord, Slack, Browsers, System, Alarms, Calls).
+* **Smooth Droplet Detachment Animation:** When a notification arrives, it organically detaches from the top notch like a fluid droplet, presenting the app icon, title, body, and timestamp.
+* **Universal Action Handling:**
+  * **Alarms & Timers:** Native Snooze (+5 min) and Dismiss action buttons.
+  * **Calls:** Answer and Decline actions.
+  * **Messaging:** Built-in **Inline Quick Reply** field allowing you to type and send replies instantly without switching windows.
+* **Native Toast Suppression:** Optional toggle to suppress redundant Windows native popup toasts, preventing duplicate notifications while keeping the Dynamic Island droplet as the sole, elegant source of alerts.
+* **Direct App Activation:** Clicking on the notification automatically brings the originating window to the foreground.
 
-<p align="center">
-  <img width="576" height="102" alt="Bloom Dock" src="https://github.com/user-attachments/assets/96229f0e-1246-4baf-b8ad-3e8f77142a12" />
-</p>
+### ⚡ 2. Zero-Shadow Minimalist Design
+* **Clean, Razor-Sharp Edges:** Eliminates muddy, ambient box shadows and fuzzy drop shadows around the notch and droplet.
+* **Tuned for OLED & Modern Displays:** True black OLED surfaces, crisp high-contrast outlines, and refined frosted glass blurs that blend seamlessly with any desktop wallpaper.
 
-A taskbar that actually moves.
+### 🎛️ 3. Completely Overhauled Settings Architecture
+* **Spacious 740×540 Desktop Layout:** Redesigned from the ground up for modern monitors with no cramped panels or awkward clipping.
+* **Instant Live Search:** Built-in bilingual search bar supporting English and Persian (فارسی) keywords (`سایه`, `نوتیف`, `تسکبار`, `shadow`, `notif`, `dock`, `boot`, `theme`). Instantly jump to any setting.
+* **Dedicated Customization Tabs:**
+  * **Notifications & Droplet:** Banner duration slider (2s–15s), toast suppression toggle, chime sound toggle, inline reply toggle, category filters, history limit, and instant test notification buttons.
+  * **Appearance:** One-click Theme Presets (`OLED Black`, `Midnight`, `Slate`, `Deep Navy`, `Cyber Violet`, `Light Frosted`), Zero-Shadow Mode toggle, border styles, and blur intensity.
+  * **Notch Geometry & Interaction:** Top offset Y, base width adjustment, corner curvature, outside click collapse, and fullscreen suppression.
+  * **Dock Controls:** Icon sizing (32px–64px), hover magnification slider, running indicator styles, and taskbar auto-hide integration.
+  * **Hotkeys:** Comprehensive view and customization of global keyboard shortcuts.
+  * **General & Backup:** 1-click **Export Configuration (JSON)** and **Import Configuration (JSON)** for seamless backups across devices.
 
-Bloom replaces your native Windows taskbar.
-It sits at the bottom of your screen, always there when you need it.
+### 🛡️ 4. Focus & Multi-Tasking Intelligence
+* **Start Menu Protection:** Prevents notch closing collisions when interacting with the Windows 11 Start Menu and search bar.
+* **Fullscreen Game Detection:** Automatically suppresses hover expansions during fullscreen games or media playback to eliminate unwanted distractions.
 
-Drag to reorder.
-Hover for window previews.
-Right-click for context menus.
+### 📝 5. Integrated Productivity & System Suite
+* **Interactive To-Do List:** Built-in to-do panel with atomic disk persistence (`%APPDATA%/todos.json`).
+* **Quick Timers & Stopwatch:** Multi-preset timers with audio chimes.
+* **Quick Notes Scratchpad:** Auto-saving quick notes right inside the island.
+* **Expanded Command Center:** Fast audio output device switching, removable drive storage monitors, Wi-Fi, Bluetooth, volume, and brightness sliders.
 
-It's not an overlay.
-It _is_ your taskbar.
-
-<!-- SHOWCASE: GIF — dock hover previews in action -->
-<!-- ![Window Previews](your-preview-gif-url) -->
-
----
-
-## Under the Hood
-
-<!-- SHOWCASE: Optional — architecture diagram or visual of the 5-window system -->
-<!-- ![Architecture](your-arch-url) -->
-
-A Rust backend that speaks directly to the Windows shell.
-
-Global hooks intercepting keys before Windows sees them.
-WASAPI capturing system audio in real-time.
-COM controlling your media sessions.
-WMI monitoring your hardware.
-
-The whole thing sleeps when you don't need it.
-The audio visualizer pauses when nothing's playing.
-The cursor monitor hides when the dock is gone.
-Thumbnails only refresh on focus.
-
-It's fast because it has to be.
+### ⚡ 6. Instant Startup & Shell Priority
+* Elevated process priority (`High Priority Class`) at launch.
+* Zero-delay taskbar concealment on boot, preventing the default Windows taskbar from flickering or showing before Bloom takes over.
 
 ---
 
-<!-- SHOWCASE: Full-width cinematic video or GIF montage -->
-<!-- ![Bloom Montage](your-montage-url) -->
+## 🛠️ Architecture
+
+* **Frontend:** [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Framer Motion](https://www.framer.com/motion/) (physics-based spring animations), [Lucide Icons](https://lucide.dev/), [Tailwind CSS v4](https://tailwindcss.com/), [Vite](https://vitejs.dev/).
+* **Backend:** [Rust](https://www.rust-lang.org/), [Tauri v2](https://tauri.app/), `windows` crate (Win32 APIs, WinRT `UserNotificationListener`, COM, WMI, WASAPI, `UI_Notifications`, `Data_Xml_Dom`).
 
 ---
 
-## 🛡️ Microsoft Defender
+## 📦 Building from Source
 
-Some users may see a Microsoft Defender warning when installing Bloom.
+### Prerequisites
+* [Rust](https://rustup.rs/) (v1.78+)
+* [Node.js](https://nodejs.org/) (v20+) or [Bun](https://bun.sh/)
+* Windows 11 or Windows 10 (Version 1903+)
 
-The executable was submitted directly to Microsoft for analysis. Microsoft reviewed the file and confirmed that it **does not meet their criteria for malware or potentially unwanted applications**, and **the detection has been removed**.
-
-<p align="center">
-  <img width="800" alt="Microsoft Security Intelligence" src="https://github.com/user-attachments/assets/67ddddde-9c68-4338-a0f2-c5645e416514" />
-</p>
-
-<details>
-<summary>Still seeing the detection?</summary>
-
-Your system may still have the previous Defender signature cached. Microsoft recommends updating your Defender security intelligence.
-
-Open **Command Prompt as Administrator** and run:
-
-```cmd
-cd "C:\Program Files\Windows Defender"
-MpCmdRun.exe -removedefinitions -dynamicsignatures
-MpCmdRun.exe -SignatureUpdate
-```
-
-</details>
-
-## Get It Running
-
-**Download** the latest build from [Releases](https://github.com/SehajveerSingh2005/bloom/releases/latest).
-
-Or build from source:
-
+### Setup
 ```bash
-git clone https://github.com/SehajveerSingh2005/bloom.git
-cd bloom
-bun install
-bun run tauri dev
+# Clone this repository
+git clone https://github.com/RMNO21/bloom-alternative-by-RMNO21.git
+cd bloom-alternative-by-RMNO21
+
+# Install frontend dependencies
+npm install
+# or: bun install
+
+# Run in development mode
+npm run tauri dev
+# or: bun run tauri dev
+
+# Build production executable
+npm run build
+cd src-tauri && cargo build --release
 ```
 
-You'll need [Rust](https://rustup.rs/) and [Bun](https://bun.sh/). That's it.
+The compiled release binary will be available at:
+`src-tauri/target/release/bloom.exe`
 
 ---
 
-## Contributing
+## 📄 License & Legal Notice
 
-Bloom is open source.
-Found a bug? Open an issue.
-Have an idea? Open a feature request first — we'll agree on the approach before you write code. See [CONTRIBUTING.md](CONTRIBUTING.md).
-Want to just say it's cool? A star goes a long way.
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.
+See the [LICENSE](LICENSE) file for details.
 
-Licensed under [GPLv3](LICENSE).
+* Original Bloom project Copyright © 2024–2026 Sehajveer Singh ([@SehajveerSingh2005](https://github.com/SehajveerSingh2005)).
+* Modifications, alternative features, notification engine, and UI overhaul Copyright © 2026 Raman Tondro ([@RMNO21](https://github.com/RMNO21)).
 
 ---
 
 <div align="center">
 
-**Your desktop is waiting.**
+**Crafted with care by [RMNO21](https://github.com/RMNO21)** • *Reimagining the Windows Desktop*
 
 </div>

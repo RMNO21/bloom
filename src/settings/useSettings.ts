@@ -50,11 +50,11 @@ export function useSettings() {
 		() => (localStorage.getItem("bloom-notch-remember-panel") ??
 			localStorage.getItem("bloom-notch-click-to-open")) !== "false"
 	);
-	const [notchDefaultPanel, setNotchDefaultPanel] = useState<"calendar" | "command-center" | "notifications">(
+	const [notchDefaultPanel, setNotchDefaultPanel] = useState<"calendar" | "command-center" | "timers" | "notifications">(
 		() => {
 			const saved = localStorage.getItem("bloom-notch-default-panel");
-			if (saved === "command-center" || saved === "notifications" || saved === "calendar") return saved;
-			return "calendar";
+			if (saved === "command-center" || saved === "timers" || saved === "notifications" || saved === "calendar") return saved;
+			return "command-center";
 		}
 	);
 	const [musicCompactNotch, setMusicCompactNotch] = useState(true);
@@ -134,6 +134,53 @@ export function useSettings() {
 	const [dockExtrasCustomFolders, setDockExtrasCustomFolders] = useState(
 		() => localStorage.getItem("bloom-dock-extras-custom-folders") || "[]"
 	);
+
+	const [fastBoot, setFastBoot] = useState(
+		() => localStorage.getItem("bloom-fast-boot") !== "false"
+	);
+	const toggleFastBoot = () => {
+		const next = !fastBoot;
+		setFastBoot(next);
+		localStorage.setItem("bloom-fast-boot", next.toString());
+	};
+
+	const [interceptNotifications, setInterceptNotifications] = useState(
+		() => localStorage.getItem("bloom-intercept-notifications") !== "false"
+	);
+	const toggleInterceptNotifications = () => {
+		const next = !interceptNotifications;
+		setInterceptNotifications(next);
+		localStorage.setItem("bloom-intercept-notifications", next.toString());
+	};
+
+	const [pomoFocusMins, setPomoFocusMins] = useState(
+		() => parseInt(localStorage.getItem("bloom_pomo_focus_mins") || "25") || 25
+	);
+	const [pomoShortMins, setPomoShortMins] = useState(
+		() => parseInt(localStorage.getItem("bloom_pomo_short_mins") || "5") || 5
+	);
+	const [pomoLongMins, setPomoLongMins] = useState(
+		() => parseInt(localStorage.getItem("bloom_pomo_long_mins") || "15") || 15
+	);
+	const [pomoCycles, setPomoCycles] = useState(
+		() => parseInt(localStorage.getItem("bloom_pomo_cycle_count") || "4") || 4
+	);
+	const updatePomoSettings = (focus: number, shortB: number, longB: number, cycles: number) => {
+		setPomoFocusMins(focus);
+		setPomoShortMins(shortB);
+		setPomoLongMins(longB);
+		setPomoCycles(cycles);
+		localStorage.setItem("bloom_pomo_focus_mins", focus.toString());
+		localStorage.setItem("bloom_pomo_short_mins", shortB.toString());
+		localStorage.setItem("bloom_pomo_long_mins", longB.toString());
+		localStorage.setItem("bloom_pomo_cycle_count", cycles.toString());
+	};
+	const resetPomoProgress = () => {
+		localStorage.setItem("bloom_pomo_cycle_count", "1");
+		localStorage.setItem("bloom_pomo_phase", "focus");
+		localStorage.setItem("bloom_pomo_today_completed", "0");
+		setPomoCycles(1);
+	};
 	const [dockMode, setDockMode] = useState(() => {
 		// "smart" is the fresh-install default — keep in step with App.tsx,
 		// Dock.tsx, and the backend fallback in commands.rs.
@@ -186,6 +233,302 @@ export function useSettings() {
 		"idle"
 	);
 
+	// Notifications
+	const [notifSuppressWindows, setNotifSuppressWindows] = useState(
+		() => localStorage.getItem("bloom-notif-suppress-windows-toasts") !== "false"
+	);
+	const toggleNotifSuppressWindows = () => {
+		const next = !notifSuppressWindows;
+		setNotifSuppressWindows(next);
+		saveSetting("bloom-notif-suppress-windows-toasts", next.toString());
+		invoke("set_windows_toast_suppression_cmd", { suppress: next }).catch(() => {});
+	};
+
+	const [notifDuration, setNotifDuration] = useState(
+		() => Number(localStorage.getItem("bloom-notif-duration") || "6")
+	);
+	const changeNotifDuration = (sec: number) => {
+		setNotifDuration(sec);
+		saveSetting("bloom-notif-duration", sec.toString());
+	};
+
+	const [notifSound, setNotifSound] = useState(
+		() => localStorage.getItem("bloom-notif-sound") !== "false"
+	);
+	const toggleNotifSound = () => {
+		const next = !notifSound;
+		setNotifSound(next);
+		saveSetting("bloom-notif-sound", next.toString());
+	};
+
+	const [notifQuickReply, setNotifQuickReply] = useState(
+		() => localStorage.getItem("bloom-notif-quick-reply") !== "false"
+	);
+	const toggleNotifQuickReply = () => {
+		const next = !notifQuickReply;
+		setNotifQuickReply(next);
+		saveSetting("bloom-notif-quick-reply", next.toString());
+	};
+
+	const [notifCatMessages, setNotifCatMessages] = useState(
+		() => localStorage.getItem("bloom-notif-cat-messages") !== "false"
+	);
+	const toggleNotifCatMessages = () => {
+		const next = !notifCatMessages;
+		setNotifCatMessages(next);
+		saveSetting("bloom-notif-cat-messages", next.toString());
+	};
+
+	const [notifCatAlarms, setNotifCatAlarms] = useState(
+		() => localStorage.getItem("bloom-notif-cat-alarms") !== "false"
+	);
+	const toggleNotifCatAlarms = () => {
+		const next = !notifCatAlarms;
+		setNotifCatAlarms(next);
+		saveSetting("bloom-notif-cat-alarms", next.toString());
+	};
+
+	const [notifCatCalls, setNotifCatCalls] = useState(
+		() => localStorage.getItem("bloom-notif-cat-calls") !== "false"
+	);
+	const toggleNotifCatCalls = () => {
+		const next = !notifCatCalls;
+		setNotifCatCalls(next);
+		saveSetting("bloom-notif-cat-calls", next.toString());
+	};
+
+	const [notifCatSystem, setNotifCatSystem] = useState(
+		() => localStorage.getItem("bloom-notif-cat-system") !== "false"
+	);
+	const toggleNotifCatSystem = () => {
+		const next = !notifCatSystem;
+		setNotifCatSystem(next);
+		saveSetting("bloom-notif-cat-system", next.toString());
+	};
+
+	const [notifHistoryLimit, setNotifHistoryLimit] = useState(
+		() => Number(localStorage.getItem("bloom-notif-history-limit") || "20")
+	);
+	const changeNotifHistoryLimit = (limit: number) => {
+		setNotifHistoryLimit(limit);
+		saveSetting("bloom-notif-history-limit", limit.toString());
+	};
+
+	const clearNotificationHistory = async () => {
+		try {
+			await invoke("clear_notification_history_cmd");
+		} catch (e) {
+			console.error("Failed to clear notifications:", e);
+		}
+	};
+
+	const sendTestNotification = async (category: string = "message") => {
+		try {
+			let appName = "Telegram";
+			let title = "Sarah Jenkins";
+			let body = "Bloom notification system is working perfectly!";
+			if (category === "alarm") {
+				appName = "Clock";
+				title = "Morning Alarm";
+				body = "Wake up, meeting starts in 15 minutes";
+			} else if (category === "call") {
+				appName = "WhatsApp";
+				title = "Incoming Call";
+				body = "David Miller is calling you...";
+			}
+			await invoke("emit_test_notification", {
+				appName,
+				title,
+				body,
+				category
+			});
+		} catch (e) {
+			console.error("Failed to send test notification:", e);
+		}
+	};
+
+	// Notch Geometry & Behavior
+	const [notchOffsetY, setNotchOffsetY] = useState(
+		() => Number(localStorage.getItem("bloom-notch-offset-y") || "0")
+	);
+	const handleNotchOffsetYChange = (val: number) => {
+		setNotchOffsetY(val);
+		saveSetting("bloom-notch-offset-y", val.toString());
+	};
+
+	const [notchWidthOffset, setNotchWidthOffset] = useState(
+		() => Number(localStorage.getItem("bloom-notch-width-offset") || "0")
+	);
+	const handleNotchWidthOffsetChange = (val: number) => {
+		setNotchWidthOffset(val);
+		saveSetting("bloom-notch-width-offset", val.toString());
+	};
+
+	const [notchCornerRadius, setNotchCornerRadius] = useState(
+		() => Number(localStorage.getItem("bloom-notch-corner-radius") || "18")
+	);
+	const handleNotchCornerRadiusChange = (val: number) => {
+		setNotchCornerRadius(val);
+		saveSetting("bloom-notch-corner-radius", val.toString());
+	};
+
+	const [notchCloseOutside, setNotchCloseOutside] = useState(
+		() => localStorage.getItem("bloom-notch-close-outside") !== "false"
+	);
+	const toggleNotchCloseOutside = () => {
+		const next = !notchCloseOutside;
+		setNotchCloseOutside(next);
+		saveSetting("bloom-notch-close-outside", next.toString());
+	};
+
+	const [notchProtectStartMenu, setNotchProtectStartMenu] = useState(
+		() => localStorage.getItem("bloom-notch-protect-startmenu") !== "false"
+	);
+	const toggleNotchProtectStartMenu = () => {
+		const next = !notchProtectStartMenu;
+		setNotchProtectStartMenu(next);
+		saveSetting("bloom-notch-protect-startmenu", next.toString());
+	};
+
+	const [notchFullscreenDisable, setNotchFullscreenDisable] = useState(
+		() => localStorage.getItem("bloom-notch-fullscreen-disable") !== "false"
+	);
+	const toggleNotchFullscreenDisable = () => {
+		const next = !notchFullscreenDisable;
+		setNotchFullscreenDisable(next);
+		saveSetting("bloom-notch-fullscreen-disable", next.toString());
+	};
+
+	// Dock Customizations
+	const [dockIconSize, setDockIconSize] = useState(
+		() => Number(localStorage.getItem("bloom-dock-icon-size") || "44")
+	);
+	const handleDockIconSizeChange = (val: number) => {
+		setDockIconSize(val);
+		saveSetting("bloom-dock-icon-size", val.toString());
+	};
+
+	const [dockMagnification, setDockMagnification] = useState(
+		() => localStorage.getItem("bloom-dock-magnification") !== "false"
+	);
+	const toggleDockMagnification = () => {
+		const next = !dockMagnification;
+		setDockMagnification(next);
+		saveSetting("bloom-dock-magnification", next.toString());
+	};
+
+	const [dockMagScale, setDockMagScale] = useState(
+		() => Number(localStorage.getItem("bloom-dock-mag-scale") || "1.25")
+	);
+	const handleDockMagScaleChange = (val: number) => {
+		setDockMagScale(val);
+		saveSetting("bloom-dock-mag-scale", val.toString());
+	};
+
+	const [dockIndicatorStyle, setDockIndicatorStyle] = useState(
+		() => localStorage.getItem("bloom-dock-indicator-style") || "dot"
+	);
+	const handleDockIndicatorStyleChange = (val: string) => {
+		setDockIndicatorStyle(val);
+		saveSetting("bloom-dock-indicator-style", val);
+	};
+
+	const [dockPosition, setDockPosition] = useState(
+		() => localStorage.getItem("bloom-dock-position") || "center"
+	);
+	const handleDockPositionChange = (val: string) => {
+		setDockPosition(val);
+		saveSetting("bloom-dock-position", val);
+	};
+
+	const [dockHideTaskbar, setDockHideTaskbar] = useState(
+		() => localStorage.getItem("bloom-dock-hide-taskbar") !== "false"
+	);
+	const toggleDockHideTaskbar = () => {
+		const next = !dockHideTaskbar;
+		setDockHideTaskbar(next);
+		saveSetting("bloom-dock-hide-taskbar", next.toString());
+		invoke("set_taskbar_visibility_cmd", { visible: !next }).catch(() => {});
+	};
+
+	// Appearance Customizations
+	const [zeroShadowMode, setZeroShadowMode] = useState(
+		() => localStorage.getItem("bloom-theme-zero-shadow") !== "false"
+	);
+	const toggleZeroShadowMode = () => {
+		const next = !zeroShadowMode;
+		setZeroShadowMode(next);
+		saveSetting("bloom-theme-zero-shadow", next.toString());
+	};
+
+	const [borderStyle, setBorderStyle] = useState(
+		() => localStorage.getItem("bloom-border-style") || "subtle"
+	);
+	const handleBorderStyleChange = (val: string) => {
+		setBorderStyle(val);
+		saveSetting("bloom-border-style", val);
+	};
+
+	const [blurStyle, setBlurStyle] = useState(
+		() => localStorage.getItem("bloom-blur-style") || "acrylic"
+	);
+	const handleBlurStyleChange = (val: string) => {
+		setBlurStyle(val);
+		saveSetting("bloom-blur-style", val);
+	};
+
+	const applyThemePreset = (preset: {
+		mode: string;
+		color: string;
+		opacity: number;
+		zeroShadow: boolean;
+		border: string;
+		blur: string;
+	}) => {
+		setThemeMode(preset.mode);
+		setThemeColor(preset.color);
+		setThemeOpacity(preset.opacity);
+		setZeroShadowMode(preset.zeroShadow);
+		setBorderStyle(preset.border);
+		setBlurStyle(preset.blur);
+
+		saveSetting("bloom-theme-mode", preset.mode);
+		saveSetting("bloom-theme-color", preset.color);
+		saveSetting("bloom-theme-opacity", preset.opacity.toString());
+		saveSetting("bloom-theme-zero-shadow", preset.zeroShadow.toString());
+		saveSetting("bloom-border-style", preset.border);
+		saveSetting("bloom-blur-style", preset.blur);
+	};
+
+	// Hotkeys
+	const [hotkeyNotch, setHotkeyNotch] = useState(
+		() => localStorage.getItem("bloom-hotkey-notch") || "Ctrl+Shift+Space"
+	);
+	const [hotkeyDock, setHotkeyDock] = useState(
+		() => localStorage.getItem("bloom-hotkey-dock") || "Ctrl+Shift+D"
+	);
+	const [hotkeyNotifs, setHotkeyNotifs] = useState(
+		() => localStorage.getItem("bloom-hotkey-notifs") || "Ctrl+Shift+N"
+	);
+	const [hotkeySettings, setHotkeySettings] = useState(
+		() => localStorage.getItem("bloom-hotkey-settings") || "Ctrl+,"
+	);
+	const updateHotkey = (key: string, value: string) => {
+		if (key === "notch") {
+			setHotkeyNotch(value);
+			saveSetting("bloom-hotkey-notch", value);
+		} else if (key === "dock") {
+			setHotkeyDock(value);
+			saveSetting("bloom-hotkey-dock", value);
+		} else if (key === "notifs") {
+			setHotkeyNotifs(value);
+			saveSetting("bloom-hotkey-notifs", value);
+		} else if (key === "settings") {
+			setHotkeySettings(value);
+			saveSetting("bloom-hotkey-settings", value);
+		}
+	};
+
 	// ── Load all settings from backend + localStorage ──
 	const loadAllSettings = useCallback(async () => {
 		try {
@@ -222,7 +565,7 @@ export function useSettings() {
 			apply(getVal("bloom-notch-remember-panel") ?? getVal("bloom-notch-click-to-open"),
 				setNotchRememberPanel, readBool);
 			apply(getVal("bloom-notch-default-panel"), setNotchDefaultPanel,
-				(v) => v === "command-center" ? "command-center" : "calendar");
+				(v) => (v === "calendar" || v === "timers" || v === "notifications") ? v : "command-center");
 			apply(getVal("bloom-music-compact-notch"), setMusicCompactNotch, readBool);
 			apply(getVal("bloom-shelf-persist"), setShelfPersist, readBool);
 			apply(getVal("bloom-volume-overlay-enabled"), setVolumeOverlayEnabled, readBool);
@@ -277,6 +620,39 @@ export function useSettings() {
 					}
 				} catch {}
 			}
+
+			apply(getVal("bloom-notif-suppress-windows-toasts"), setNotifSuppressWindows, readBool);
+			apply(getVal("bloom-notif-duration"), setNotifDuration, (v) => Number(v) || 6);
+			apply(getVal("bloom-notif-sound"), setNotifSound, readBool);
+			apply(getVal("bloom-notif-quick-reply"), setNotifQuickReply, readBool);
+			apply(getVal("bloom-notif-cat-messages"), setNotifCatMessages, readBool);
+			apply(getVal("bloom-notif-cat-alarms"), setNotifCatAlarms, readBool);
+			apply(getVal("bloom-notif-cat-calls"), setNotifCatCalls, readBool);
+			apply(getVal("bloom-notif-cat-system"), setNotifCatSystem, readBool);
+			apply(getVal("bloom-notif-history-limit"), setNotifHistoryLimit, (v) => Number(v) || 20);
+
+			apply(getVal("bloom-notch-offset-y"), setNotchOffsetY, (v) => Number(v) || 0);
+			apply(getVal("bloom-notch-width-offset"), setNotchWidthOffset, (v) => Number(v) || 0);
+			apply(getVal("bloom-notch-corner-radius"), setNotchCornerRadius, (v) => Number(v) || 18);
+			apply(getVal("bloom-notch-close-outside"), setNotchCloseOutside, readBool);
+			apply(getVal("bloom-notch-protect-startmenu"), setNotchProtectStartMenu, readBool);
+			apply(getVal("bloom-notch-fullscreen-disable"), setNotchFullscreenDisable, readBool);
+
+			apply(getVal("bloom-dock-icon-size"), setDockIconSize, (v) => Number(v) || 44);
+			apply(getVal("bloom-dock-magnification"), setDockMagnification, readBool);
+			apply(getVal("bloom-dock-mag-scale"), setDockMagScale, (v) => Number(v) || 1.25);
+			apply(getVal("bloom-dock-indicator-style"), setDockIndicatorStyle, (v) => v);
+			apply(getVal("bloom-dock-position"), setDockPosition, (v) => v);
+			apply(getVal("bloom-dock-hide-taskbar"), setDockHideTaskbar, readBool);
+
+			apply(getVal("bloom-theme-zero-shadow"), setZeroShadowMode, readBool);
+			apply(getVal("bloom-border-style"), setBorderStyle, (v) => v);
+			apply(getVal("bloom-blur-style"), setBlurStyle, (v) => v);
+
+			apply(getVal("bloom-hotkey-notch"), setHotkeyNotch, (v) => v);
+			apply(getVal("bloom-hotkey-dock"), setHotkeyDock, (v) => v);
+			apply(getVal("bloom-hotkey-notifs"), setHotkeyNotifs, (v) => v);
+			apply(getVal("bloom-hotkey-settings"), setHotkeySettings, (v) => v);
 		} catch (e) {
 			console.error("Failed to load settings:", e);
 		}
@@ -397,7 +773,7 @@ export function useSettings() {
 		"bloom-music-mode-enabled": setMusicModeEnabled,
 		"bloom-notch-remember-panel": setNotchRememberPanel,
 		"bloom-notch-default-panel": (v: unknown) =>
-			setNotchDefaultPanel(v === "command-center" ? "command-center" : "calendar"),
+			setNotchDefaultPanel(v === "command-center" || v === "timers" || v === "notifications" ? v : "calendar"),
 		"bloom-music-compact-notch": setMusicCompactNotch,
 		"bloom-media-ambience-enabled": setMediaAmbienceEnabled,
 		"bloom-media-compact-glow-enabled": setMediaCompactGlowEnabled,
@@ -578,7 +954,7 @@ export function useSettings() {
 		saveSetting("bloom-notch-remember-panel", String(next));
 	};
 
-	const changeNotchDefaultPanel = (panel: "calendar" | "command-center" | "notifications") => {
+	const changeNotchDefaultPanel = (panel: "calendar" | "command-center" | "timers" | "notifications") => {
 		setNotchDefaultPanel(panel);
 		saveSetting("bloom-notch-default-panel", panel);
 	};
@@ -956,6 +1332,16 @@ export function useSettings() {
 		// System
 		autostart,
 		toggleAutostart,
+		fastBoot,
+		toggleFastBoot,
+		interceptNotifications,
+		toggleInterceptNotifications,
+		pomoFocusMins,
+		pomoShortMins,
+		pomoLongMins,
+		pomoCycles,
+		updatePomoSettings,
+		resetPomoProgress,
 		autoUpdate,
 		toggleAutoUpdate,
 		lowBatteryThreshold,
@@ -1060,6 +1446,72 @@ export function useSettings() {
 		dockExtrasCustomFolders,
 		handleAddDockExtraFolder,
 		handleRemoveDockExtraFolder,
+
+		// Notifications
+		notifSuppressWindows,
+		toggleNotifSuppressWindows,
+		notifDuration,
+		changeNotifDuration,
+		notifSound,
+		toggleNotifSound,
+		notifQuickReply,
+		toggleNotifQuickReply,
+		notifCatMessages,
+		toggleNotifCatMessages,
+		notifCatAlarms,
+		toggleNotifCatAlarms,
+		notifCatCalls,
+		toggleNotifCatCalls,
+		notifCatSystem,
+		toggleNotifCatSystem,
+		notifHistoryLimit,
+		changeNotifHistoryLimit,
+		clearNotificationHistory,
+		sendTestNotification,
+
+		// Notch Geometry & Behavior
+		notchOffsetY,
+		handleNotchOffsetYChange,
+		notchWidthOffset,
+		handleNotchWidthOffsetChange,
+		notchCornerRadius,
+		handleNotchCornerRadiusChange,
+		notchCloseOutside,
+		toggleNotchCloseOutside,
+		notchProtectStartMenu,
+		toggleNotchProtectStartMenu,
+		notchFullscreenDisable,
+		toggleNotchFullscreenDisable,
+
+		// Dock Customizations
+		dockIconSize,
+		handleDockIconSizeChange,
+		dockMagnification,
+		toggleDockMagnification,
+		dockMagScale,
+		handleDockMagScaleChange,
+		dockIndicatorStyle,
+		handleDockIndicatorStyleChange,
+		dockPosition,
+		handleDockPositionChange,
+		dockHideTaskbar,
+		toggleDockHideTaskbar,
+
+		// Appearance Customizations
+		zeroShadowMode,
+		toggleZeroShadowMode,
+		borderStyle,
+		handleBorderStyleChange,
+		blurStyle,
+		handleBlurStyleChange,
+		applyThemePreset,
+
+		// Hotkeys
+		hotkeyNotch,
+		hotkeyDock,
+		hotkeyNotifs,
+		hotkeySettings,
+		updateHotkey,
 
 		// Overlays
 		volumeOverlayEnabled,

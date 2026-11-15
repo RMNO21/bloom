@@ -1,0 +1,650 @@
+.cc-full-container {
+	position: absolute;
+	top: 36px;
+	left: 0;
+	width: 100%;
+	height: calc(100% - 36px);
+	box-sizing: border-box;
+	z-index: 2;
+	padding: 8px 14px 12px 14px;
+	display: flex;
+	flex-direction: column;
+	color: var(--bloom-text, white);
+	border-radius: 0 0 18px 18px;
+	overflow: hidden;
+}
+
+/* Tabs Header */
+.cc-tabs-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	background: rgba(255, 255, 255, 0.05);
+	padding: 3px;
+	border-radius: 10px;
+	margin-bottom: 10px;
+	flex-shrink: 0;
+}
+
+.cc-tab-btn {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 5px 8px;
+	border: none;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.6);
+	font-size: 11px;
+	font-weight: 550;
+	border-radius: 7px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	white-space: nowrap;
+}
+
+.cc-tab-btn:hover {
+	color: #fff;
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.cc-tab-btn.active {
+	color: #fff;
+	background: rgba(255, 255, 255, 0.16);
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Tab Page */
+.cc-tab-page {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: 2px;
+}
+
+.cc-tab-page::-webkit-scrollbar {
+	width: 4px;
+}
+.cc-tab-page::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.15);
+	border-radius: 4px;
+}
+
+/* 2-column Grid */
+.cc-grid-2col {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.cc-tile-card {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	cursor: pointer;
+	transition: all 0.15s ease;
+	user-select: none;
+	height: 38px;
+	box-sizing: border-box;
+}
+
+.cc-tile-card:hover {
+	background: rgba(255, 255, 255, 0.09);
+	transform: translateY(-0.5px);
+}
+
+.cc-tile-card.active {
+	background: rgba(255, 255, 255, 0.95);
+	border-color: rgba(255, 255, 255, 0.95);
+}
+
+.cc-tile-card.active .cc-tile-label {
+	color: #0b0b0f;
+}
+
+.cc-tile-card.active .cc-tile-sub {
+	color: rgba(0, 0, 0, 0.55);
+}
+
+.cc-tile-card.active .cc-tile-icon-bubble {
+	background: rgba(0, 0, 0, 0.08);
+	color: #000;
+}
+
+.cc-tile-icon-bubble {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.08);
+	color: rgba(255, 255, 255, 0.9);
+	flex-shrink: 0;
+	transition: all 0.15s ease;
+}
+
+.cc-tile-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	flex: 1;
+}
+
+.cc-tile-label {
+	font-size: 11px;
+	font-weight: 600;
+	color: #fff;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.1;
+}
+
+.cc-tile-sub {
+	font-size: 9.5px;
+	font-weight: 450;
+	color: rgba(255, 255, 255, 0.5);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-top: 1px;
+}
+
+.cc-tile-more-btn {
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: rgba(255, 255, 255, 0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
+	cursor: pointer;
+	border-radius: 8px;
+	transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+	margin-left: 2px;
+	flex-shrink: 0;
+}
+
+.cc-tile-more-btn:hover {
+	background: rgba(255, 255, 255, 0.22);
+	color: #ffffff;
+	transform: scale(1.08);
+}
+
+.cc-tile-more-btn:active {
+	transform: scale(0.92);
+}
+
+/* High-contrast styling when the parent card is active (white background) */
+.cc-tile-card.active .cc-tile-more-btn {
+	background: rgba(0, 0, 0, 0.08);
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	color: #0f172a;
+}
+
+.cc-tile-card.active .cc-tile-more-btn:hover {
+	background: rgba(0, 0, 0, 0.18);
+	color: #000000;
+	transform: scale(1.08);
+}
+
+.cc-tile-card.active .cc-tile-more-btn:active {
+	transform: scale(0.92);
+}
+
+/* Sliders */
+.cc-sliders-container {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.cc-slider-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	background: rgba(255, 255, 255, 0.04);
+	padding: 6px 10px;
+	border-radius: 10px;
+	border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.cc-slider-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.cc-slider-title {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	font-weight: 550;
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.cc-slider-val {
+	font-size: 11px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.85);
+}
+
+.cc-device-badge {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 7px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.1);
+	border: none;
+	color: rgba(255, 255, 255, 0.85);
+	font-size: 10px;
+	font-weight: 500;
+	cursor: pointer;
+	max-width: 140px;
+	transition: background 0.15s ease;
+}
+
+.cc-device-badge:hover {
+	background: rgba(255, 255, 255, 0.18);
+}
+
+.cc-badge-text {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cc-slider-bar-track {
+	position: relative;
+	height: 6px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 999px;
+	overflow: hidden;
+}
+
+.cc-slider-input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	cursor: pointer;
+	z-index: 2;
+	margin: 0;
+}
+
+.cc-slider-fill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	background: #ffffff;
+	border-radius: 999px;
+	pointer-events: none;
+	transition: width 0.05s ease-out;
+}
+
+/* Circular Actions Bar */
+.cc-actions-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 2px 4px 0 4px;
+}
+
+.cc-action-circle-btn {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.05);
+	color: rgba(255, 255, 255, 0.85);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.cc-action-circle-btn:hover {
+	background: rgba(255, 255, 255, 0.14);
+	color: #fff;
+	transform: scale(1.04);
+}
+
+.cc-action-circle-btn.active {
+	background: rgba(255, 255, 255, 0.95);
+	color: #0b0b0f;
+	border-color: rgba(255, 255, 255, 0.95);
+}
+
+.cc-action-circle-btn.muted-alert {
+	background: rgba(239, 68, 68, 0.2);
+	border-color: rgba(239, 68, 68, 0.5);
+	color: #f87171;
+}
+
+/* Section Blocks */
+.cc-section-block {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	border-radius: 10px;
+	padding: 8px 10px;
+}
+
+.cc-section-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.cc-section-title {
+	font-size: 11px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.6);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.cc-action-chip {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.08);
+	border: none;
+	color: rgba(255, 255, 255, 0.85);
+	font-size: 10px;
+	font-weight: 550;
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.cc-action-chip:hover {
+	background: rgba(255, 255, 255, 0.16);
+	color: #fff;
+}
+
+/* Audio Output Devices List */
+.cc-devices-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 110px;
+	overflow-y: auto;
+}
+
+.cc-device-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 5px 8px;
+	border-radius: 7px;
+	background: rgba(255, 255, 255, 0.03);
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.cc-device-item:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.cc-device-item.selected {
+	background: rgba(255, 255, 255, 0.12);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cc-device-item-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	flex: 1;
+}
+
+.cc-device-icon {
+	color: rgba(255, 255, 255, 0.7);
+	display: flex;
+	align-items: center;
+}
+
+.cc-device-name {
+	font-size: 11px;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.9);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cc-check-dot {
+	color: #60a5fa;
+	display: flex;
+	align-items: center;
+}
+
+/* App Volume Mixer Rows */
+.cc-mixer-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	max-height: 110px;
+	overflow-y: auto;
+}
+
+.cc-mixer-row {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	background: rgba(255, 255, 255, 0.02);
+	padding: 4px 6px;
+	border-radius: 6px;
+}
+
+.cc-mixer-app-info {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.cc-mixer-app-name {
+	font-size: 10.5px;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.8);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 200px;
+}
+
+.cc-mixer-pct {
+	font-size: 10px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.cc-mixer-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.cc-mixer-track {
+	position: relative;
+	height: 4px;
+	flex: 1;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 999px;
+	overflow: hidden;
+}
+
+.cc-mixer-mute-btn {
+	background: transparent;
+	border: none;
+	color: rgba(255, 255, 255, 0.6);
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	padding: 2px;
+	border-radius: 4px;
+	transition: color 0.12s ease;
+}
+
+.cc-mixer-mute-btn:hover {
+	color: #fff;
+}
+
+.cc-mixer-mute-btn.muted {
+	color: #f87171;
+}
+
+.cc-empty-hint {
+	font-size: 10.5px;
+	color: rgba(255, 255, 255, 0.4);
+	text-align: center;
+	padding: 10px 0;
+}
+
+/* Projection Grid (Win+P) */
+.cc-projection-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 6px;
+}
+
+.cc-proj-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	padding: 8px 4px;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	color: rgba(255, 255, 255, 0.85);
+	cursor: pointer;
+	transition: all 0.12s ease;
+	font-size: 9.5px;
+	font-weight: 550;
+}
+
+.cc-proj-btn:hover {
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff;
+	transform: translateY(-1px);
+}
+
+.cc-proj-btn:active {
+	transform: scale(0.96);
+}
+
+/* Power Mode Segmented */
+.cc-power-mode-group {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	background: rgba(255, 255, 255, 0.04);
+	padding: 3px;
+	border-radius: 8px;
+}
+
+.cc-pm-segment {
+	flex: 1;
+	padding: 5px 0;
+	border: none;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.6);
+	font-size: 10.5px;
+	font-weight: 550;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.cc-pm-segment:hover {
+	color: #fff;
+}
+
+.cc-pm-segment.active {
+	background: rgba(255, 255, 255, 0.16);
+	color: #fff;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Removable Storage */
+.cc-drives-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 90px;
+	overflow-y: auto;
+}
+
+.cc-drive-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 5px 8px;
+	border-radius: 7px;
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.cc-drive-info {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	flex: 1;
+	font-size: 11px;
+}
+
+.cc-drive-label {
+	font-weight: 550;
+	color: #fff;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cc-drive-size {
+	font-size: 9.5px;
+	color: rgba(255, 255, 255, 0.45);
+	margin-left: 4px;
+}
+
+.cc-eject-btn {
+	padding: 3px 9px;
+	border-radius: 6px;
+	border: 1px solid rgba(239, 68, 68, 0.35);
+	background: rgba(239, 68, 68, 0.12);
+	color: #fca5a5;
+	font-size: 10.5px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.cc-eject-btn:hover {
+	background: rgba(239, 68, 68, 0.25);
+	color: #fff;
+}
