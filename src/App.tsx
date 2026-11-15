@@ -1010,9 +1010,24 @@ function App() {
 	);
 	const rememberPanelEnabledRef = useRef(rememberPanelEnabled);
 	rememberPanelEnabledRef.current = rememberPanelEnabled;
-	const [_defaultPanel, setDefaultPanel] = useState<NotchPanel>(() =>
+	const [defaultPanel, setDefaultPanel] = useState<NotchPanel>(() =>
 		asNotchPanel(localStorage.getItem("bloom-notch-default-panel")) ?? "command-center"
 	);
+	const [notchPanelsOrder, setNotchPanelsOrder] = useState<NotchPanel[]>(() => {
+		try {
+			const saved = localStorage.getItem("bloom-notch-panels-order");
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					const validPanels: NotchPanel[] = ["command-center", "calendar", "timers", "notifications"];
+					const filtered = parsed.filter((p): p is NotchPanel => validPanels.includes(p));
+					const missing = validPanels.filter((p) => !filtered.includes(p));
+					return [...filtered, ...missing];
+				}
+			}
+		} catch {}
+		return ["command-center", "calendar", "timers", "notifications"];
+	});
 	// The panel the open notch was last left on. Opening the notch returns to it,
 	// across restarts too (bloom-notch-last-panel).
 	const [lastPanel, setLastPanel] = useState<NotchPanel | null>(() => {
@@ -1079,6 +1094,16 @@ function App() {
 					(getVal("bloom-notch-remember-panel") ?? getVal("bloom-notch-click-to-open", "true")) !== "false"
 				);
 				setDefaultPanel(asNotchPanel(getVal("bloom-notch-default-panel")) ?? "command-center");
+				try {
+					const orderVal = getVal("bloom-notch-panels-order");
+					const parsed = typeof orderVal === "string" ? JSON.parse(orderVal) : orderVal;
+					if (Array.isArray(parsed) && parsed.length > 0) {
+						const validPanels: NotchPanel[] = ["command-center", "calendar", "timers", "notifications"];
+						const filtered = parsed.filter((p): p is NotchPanel => validPanels.includes(p));
+						const missing = validPanels.filter((p) => !filtered.includes(p));
+						setNotchPanelsOrder([...filtered, ...missing]);
+					}
+				} catch {}
 				setShelfPersist(getVal("bloom-shelf-persist", "false") === "true");
 				setSettingsMusicCompactNotch(getVal("bloom-music-compact-notch", "true") !== "false");
 				setLastPanel(asNotchPanel(getVal("bloom-notch-last-panel")));
@@ -1266,6 +1291,17 @@ function App() {
 				const p = asNotchPanel(v) ?? "command-center";
 				setDefaultPanel(p);
 				localStorage.setItem("bloom-notch-default-panel", p);
+			},
+			"bloom-notch-panels-order": (v: unknown) => {
+				try {
+					const raw = typeof v === "string" ? JSON.parse(v) : v;
+					if (Array.isArray(raw) && raw.length > 0) {
+						const validPanels: NotchPanel[] = ["command-center", "calendar", "timers", "notifications"];
+						const filtered = raw.filter((p): p is NotchPanel => validPanels.includes(p));
+						const missing = validPanels.filter((p) => !filtered.includes(p));
+						setNotchPanelsOrder([...filtered, ...missing]);
+					}
+				} catch {}
 			},
 			"bloom-shelf-persist": setShelfPersist,
 			"bloom-music-compact-notch": setSettingsMusicCompactNotch,
@@ -2263,7 +2299,7 @@ function App() {
 	// Music and shelf remain entry points through their activity affordances.
 	const cycleBloomMode = (direction: 1 | -1) => {
 		if (bloomMode === "announcement" || bloomMode === "notification") return false;
-		const panels = NOTCH_PANELS.filter(panelAvailable);
+		const panels = notchPanelsOrder.filter(panelAvailable);
 		const currentIndex = panels.indexOf(bloomMode as NotchPanel);
 		const nextMode = currentIndex === -1
 			? openingPanel()
@@ -2278,7 +2314,7 @@ function App() {
 
 	// Arrows and wheel both stay within panels once one is open.
 	const cyclePanel = (direction: 1 | -1) => {
-		const panels = NOTCH_PANELS.filter(panelAvailable);
+		const panels = notchPanelsOrder.filter(panelAvailable);
 		const index = panels.indexOf(bloomMode as NotchPanel);
 		if (index === -1 || panels.length < 2) return;
 		const nextMode = panels[(index + direction + panels.length) % panels.length];
@@ -2414,9 +2450,17 @@ function App() {
 	restingModeRef.current = collapsedMode;
 	bloomModeRef.current = bloomMode;
 
-	// Every expansion opens the command center (settings control panel) as the default first page.
+	// Opening panel follows remember mode, default panel, or first panel in the circular order
 	const openingPanel = (): NotchPanel => {
-		return "command-center";
+		const panels = notchPanelsOrder.filter(panelAvailable);
+		if (panels.length === 0) return "command-center";
+		if (rememberPanelEnabled && lastPanel && panelAvailable(lastPanel)) {
+			return lastPanel;
+		}
+		if (defaultPanel && panelAvailable(defaultPanel)) {
+			return defaultPanel;
+		}
+		return panels[0];
 	};
 
 	// Expands the notch into a panel, or into an activity's own view.
@@ -3011,7 +3055,7 @@ function App() {
 			return;
 		}
 
-		const panels = NOTCH_PANELS.filter(panelAvailable);
+		const panels = notchPanelsOrder.filter(panelAvailable);
 		const totalPanels = panels.length;
 		if (totalPanels <= 1) {
 			closeAndCollapseNotch();
@@ -3268,7 +3312,7 @@ function App() {
 	// Arrows switch between the two tool panels; wheel/swipe can also open one
 	// directly from the collapsed pill or a live activity.
 	const showPanelArrows =
-		isOpen && asNotchPanel(bloomMode) !== null && NOTCH_PANELS.filter(panelAvailable).length > 1;
+		isOpen && asNotchPanel(bloomMode) !== null && notchPanelsOrder.filter(panelAvailable).length > 1;
 
 	// Close compact media player expansions when notch is unhovered or mode changes
 	useEffect(() => {

@@ -760,6 +760,8 @@ function SettingsApp() {
 									toggleNotchRememberPanel={settings.toggleNotchRememberPanel}
 									notchDefaultPanel={settings.notchDefaultPanel}
 									changeNotchDefaultPanel={settings.changeNotchDefaultPanel}
+									notchPanelsOrder={settings.notchPanelsOrder}
+									updateNotchPanelsOrder={settings.updateNotchPanelsOrder}
 									timerSoundEnabled={settings.timerSoundEnabled}
 									toggleTimerSound={settings.toggleTimerSound}
 									musicModeEnabled={settings.musicModeEnabled}

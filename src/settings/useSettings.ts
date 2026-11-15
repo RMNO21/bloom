@@ -16,6 +16,14 @@ import {
 } from "../dockExtras";
 import type { WidgetConfig } from "./types";
 
+export type NotchPanelId = "command-center" | "calendar" | "timers" | "notifications";
+export const DEFAULT_NOTCH_PANELS_ORDER: NotchPanelId[] = [
+	"command-center",
+	"calendar",
+	"timers",
+	"notifications"
+];
+
 function readBool(val: string | null): boolean {
 	return val === "true";
 }
@@ -57,6 +65,21 @@ export function useSettings() {
 			return "command-center";
 		}
 	);
+	const [notchPanelsOrder, setNotchPanelsOrder] = useState<NotchPanelId[]>(() => {
+		try {
+			const saved = localStorage.getItem("bloom-notch-panels-order");
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					const validPanels: NotchPanelId[] = ["command-center", "calendar", "timers", "notifications"];
+					const filtered = parsed.filter((p): p is NotchPanelId => validPanels.includes(p));
+					const missing = validPanels.filter(p => !filtered.includes(p));
+					return [...filtered, ...missing];
+				}
+			}
+		} catch {}
+		return DEFAULT_NOTCH_PANELS_ORDER;
+	});
 	const [musicCompactNotch, setMusicCompactNotch] = useState(true);
 	const [shelfPersist, setShelfPersist] = useState(
 		() => localStorage.getItem("bloom-shelf-persist") === "true"
@@ -567,6 +590,18 @@ export function useSettings() {
 				setNotchRememberPanel, readBool);
 			apply(getVal("bloom-notch-default-panel"), setNotchDefaultPanel,
 				(v) => (v === "calendar" || v === "timers" || v === "notifications") ? v : "command-center");
+			try {
+				const orderVal = getVal("bloom-notch-panels-order");
+				if (orderVal) {
+					const raw = typeof orderVal === "string" ? JSON.parse(orderVal) : orderVal;
+					if (Array.isArray(raw) && raw.length > 0) {
+						const validPanels: NotchPanelId[] = ["command-center", "calendar", "timers", "notifications"];
+						const filtered = raw.filter((p): p is NotchPanelId => validPanels.includes(p));
+						const missing = validPanels.filter(p => !filtered.includes(p));
+						setNotchPanelsOrder([...filtered, ...missing]);
+					}
+				}
+			} catch {}
 			apply(getVal("bloom-music-compact-notch"), setMusicCompactNotch, readBool);
 			apply(getVal("bloom-shelf-persist"), setShelfPersist, readBool);
 			apply(getVal("bloom-volume-overlay-enabled"), setVolumeOverlayEnabled, readBool);
@@ -775,6 +810,17 @@ export function useSettings() {
 		"bloom-notch-remember-panel": setNotchRememberPanel,
 		"bloom-notch-default-panel": (v: unknown) =>
 			setNotchDefaultPanel(v === "command-center" || v === "timers" || v === "notifications" ? v : "calendar"),
+		"bloom-notch-panels-order": (v: unknown) => {
+			try {
+				const raw = typeof v === "string" ? JSON.parse(v) : v;
+				if (Array.isArray(raw)) {
+					const validPanels: NotchPanelId[] = ["command-center", "calendar", "timers", "notifications"];
+					const filtered = raw.filter((p): p is NotchPanelId => validPanels.includes(p));
+					const missing = validPanels.filter(p => !filtered.includes(p));
+					setNotchPanelsOrder([...filtered, ...missing]);
+				}
+			} catch {}
+		},
 		"bloom-music-compact-notch": setMusicCompactNotch,
 		"bloom-media-ambience-enabled": setMediaAmbienceEnabled,
 		"bloom-media-compact-glow-enabled": setMediaCompactGlowEnabled,
@@ -958,6 +1004,17 @@ export function useSettings() {
 	const changeNotchDefaultPanel = (panel: "calendar" | "command-center" | "timers" | "notifications") => {
 		setNotchDefaultPanel(panel);
 		saveSetting("bloom-notch-default-panel", panel);
+	};
+
+	const updateNotchPanelsOrder = (order: NotchPanelId[]) => {
+		const validPanels: NotchPanelId[] = ["command-center", "calendar", "timers", "notifications"];
+		const filtered = order.filter((p): p is NotchPanelId => validPanels.includes(p));
+		const missing = validPanels.filter(p => !filtered.includes(p));
+		const cleanOrder = [...filtered, ...missing];
+		setNotchPanelsOrder(cleanOrder);
+		const str = JSON.stringify(cleanOrder);
+		localStorage.setItem("bloom-notch-panels-order", str);
+		saveSetting("bloom-notch-panels-order", str);
 	};
 
 	const toggleMusicCompactNotch = () => {
@@ -1385,6 +1442,8 @@ export function useSettings() {
 		toggleNotchRememberPanel,
 		notchDefaultPanel,
 		changeNotchDefaultPanel,
+		notchPanelsOrder,
+		updateNotchPanelsOrder,
 		musicCompactNotch,
 		toggleMusicCompactNotch,
 		shelfPersist,

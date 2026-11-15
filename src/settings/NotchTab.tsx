@@ -14,6 +14,7 @@ import {
 	X,
 	Flame,
 	RotateCcw,
+	Repeat,
 	Sliders,
 	MoveVertical,
 	Shield,
@@ -22,6 +23,7 @@ import {
 import { SettingRow } from "./SettingRow";
 import { StatusWidgetConfig } from "../components/StatusWidgetConfig";
 import type { WidgetConfig } from "./types";
+import { NotchPanelId, DEFAULT_NOTCH_PANELS_ORDER } from "./useSettings";
 
 interface NotchTabProps {
 	notchMode: string;
@@ -48,6 +50,8 @@ interface NotchTabProps {
 	toggleNotchRememberPanel: () => void;
 	notchDefaultPanel: "calendar" | "command-center" | "timers" | "notifications";
 	changeNotchDefaultPanel: (panel: "calendar" | "command-center" | "timers" | "notifications") => void;
+	notchPanelsOrder?: NotchPanelId[];
+	updateNotchPanelsOrder?: (order: NotchPanelId[]) => void;
 	timerSoundEnabled: boolean;
 	toggleTimerSound: () => void;
 	musicModeEnabled: boolean;
@@ -88,6 +92,25 @@ interface NotchTabProps {
 	resetPomoProgress?: () => void;
 }
 
+const PANEL_DEFINITIONS: Record<NotchPanelId, { name: string; icon: any }> = {
+	"command-center": {
+		name: "Command Center",
+		icon: Sliders
+	},
+	"calendar": {
+		name: "To-Do & Notes",
+		icon: Calendar
+	},
+	"timers": {
+		name: "Timers",
+		icon: Timer
+	},
+	"notifications": {
+		name: "Notifications",
+		icon: BellRing
+	}
+};
+
 export function NotchTab({
 	notchMode,
 	setNotchModeValue,
@@ -113,6 +136,8 @@ export function NotchTab({
 	toggleNotchRememberPanel,
 	notchDefaultPanel,
 	changeNotchDefaultPanel,
+	notchPanelsOrder,
+	updateNotchPanelsOrder,
 	timerSoundEnabled,
 	toggleTimerSound,
 	musicModeEnabled,
@@ -150,6 +175,25 @@ export function NotchTab({
 	const [newPresetVal, setNewPresetVal] = useState("");
 	const [presetsInput, setPresetsInput] = useState(() => (timerPresets || [5, 15, 25, 50]).join(", "));
 	const isInputFocusedRef = useRef(false);
+
+	const currentPanelsOrder = (notchPanelsOrder && notchPanelsOrder.length === 4)
+		? notchPanelsOrder
+		: DEFAULT_NOTCH_PANELS_ORDER;
+
+	const handleSwapPanel = (idx: number, direction: 1 | -1) => {
+		if (!updateNotchPanelsOrder) return;
+		const targetIdx = (idx + direction + currentPanelsOrder.length) % currentPanelsOrder.length;
+		const next = [...currentPanelsOrder];
+		const temp = next[idx];
+		next[idx] = next[targetIdx];
+		next[targetIdx] = temp;
+		updateNotchPanelsOrder(next);
+	};
+
+	const handleResetPanelOrder = () => {
+		if (!updateNotchPanelsOrder) return;
+		updateNotchPanelsOrder(DEFAULT_NOTCH_PANELS_ORDER);
+	};
 
 	useEffect(() => {
 		if (!isInputFocusedRef.current) {
@@ -338,9 +382,65 @@ export function NotchTab({
 			<div className="setting-group">
 
 				<SettingRow
+					icon={Repeat}
+					label="Panel Navigation Order"
+					desc="Sequence when cycling through notch panels (wraps circularly)"
+				>
+					<div className="panel-order-row">
+						<div className="panel-order-chips">
+							{currentPanelsOrder.map((id, idx) => {
+								const meta = PANEL_DEFINITIONS[id] || { name: id, icon: PanelTop };
+								const Icon = meta.icon;
+								const isStart = !notchRememberPanel && id === notchDefaultPanel;
+								const isDisabled = id === "calendar" && !calendarEnabled;
+								return (
+									<div
+										key={id}
+										className={`panel-order-chip ${isStart ? "is-start" : ""} ${isDisabled ? "is-disabled" : ""}`}
+									>
+										<span className="panel-order-chip-index">{idx + 1}</span>
+										<Icon size={12} className="panel-order-chip-icon" />
+										<span className="panel-order-chip-name">{meta.name}</span>
+										{isStart && <span className="panel-order-chip-star" title="Default Start Tab">⭐</span>}
+										{isDisabled && <span className="panel-order-chip-off">Off</span>}
+										<div className="panel-order-chip-btns">
+											<button
+												type="button"
+												className="panel-order-arrow-btn"
+												onClick={() => handleSwapPanel(idx, -1)}
+												title="Move earlier in cycle"
+											>
+												◀
+											</button>
+											<button
+												type="button"
+												className="panel-order-arrow-btn"
+												onClick={() => handleSwapPanel(idx, 1)}
+												title="Move later in cycle"
+											>
+												▶
+											</button>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+						<button
+							type="button"
+							className="settings-btn settings-btn-subtle panel-order-reset"
+							onClick={handleResetPanelOrder}
+							title="Reset order to default"
+						>
+							<RotateCcw size={11} />
+							<span>Reset</span>
+						</button>
+					</div>
+				</SettingRow>
+
+				<SettingRow
 					icon={PanelTop}
 					label="Remember Last Panel"
-					desc="Reopen the panel you last used; turn off to choose a fixed default"
+					desc="Reopen the panel you last used; turn off to choose a fixed default start tab"
 				>
 					<label className="toggle-switch">
 						<input type="checkbox" checked={notchRememberPanel} onChange={toggleNotchRememberPanel} />
@@ -349,7 +449,7 @@ export function NotchTab({
 				</SettingRow>
 
 				{!notchRememberPanel && (
-					<SettingRow icon={PanelTop} label="Default Panel" desc="Open this panel when you click the notch">
+					<SettingRow icon={PanelTop} label="Default Start Panel" desc="Designate which panel opens first when expanding the notch">
 						<select
 							className="settings-select"
 							value={calendarEnabled ? notchDefaultPanel : (notchDefaultPanel === "calendar" ? "command-center" : notchDefaultPanel)}
