@@ -2920,6 +2920,21 @@ img {
 	overflow: hidden;
 }
 
+/* Command Center Panel in Notch */
+.command-center-content-full,
+.wifi-panel-content,
+.bluetooth-panel-content {
+	position: absolute;
+	top: 36px;
+	left: 0;
+	width: 100%;
+	height: calc(100% - 36px);
+	box-sizing: border-box;
+	z-index: 2;
+	border-radius: 0 0 18px 18px;
+	overflow: hidden;
+}
+
 /* Timers & Alarms Panel in Notch */
 .timers-panel-content {
 	position: absolute;

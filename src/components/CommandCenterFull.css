@@ -1,12 +1,12 @@
 .cc-full-container {
-	position: absolute;
-	top: 36px;
+	position: relative;
+	top: 0;
 	left: 0;
 	width: 100%;
-	height: calc(100% - 36px);
+	height: 100%;
 	box-sizing: border-box;
 	z-index: 2;
-	padding: 8px 14px 12px 14px;
+	padding: 4px 14px 10px 14px;
 	display: flex;
 	flex-direction: column;
 	color: var(--bloom-text, white);
@@ -23,7 +23,7 @@
 	background: rgba(255, 255, 255, 0.05);
 	padding: 3px;
 	border-radius: 10px;
-	margin-bottom: 10px;
+	margin-bottom: 8px;
 	flex-shrink: 0;
 }
 

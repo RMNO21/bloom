@@ -2,11 +2,11 @@
    controls panel's tiles. Sits below the notch's 36px top strip, like the
    controls panel itself. */
 .qp {
-	position: absolute;
-	top: 36px;
+	position: relative;
+	top: 0;
 	left: 0;
 	width: 100%;
-	height: calc(100% - 36px);
+	height: 100%;
 	box-sizing: border-box;
 	z-index: 2;
 	padding: 4px 12px 8px;

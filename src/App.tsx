@@ -4022,6 +4022,7 @@ function App() {
 									{bloomMode === "wifi" && (
 										<motion.div
 											key="wifi-view"
+											className="wifi-panel-content"
 											initial={{ opacity: 0 }}
 											animate={{ opacity: 1 }}
 											exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }}
@@ -4042,6 +4043,7 @@ function App() {
 									{bloomMode === "bluetooth" && (
 										<motion.div
 											key="bluetooth-view"
+											className="bluetooth-panel-content"
 											initial={{ opacity: 0 }}
 											animate={{ opacity: 1 }}
 											exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }}
@@ -4067,7 +4069,6 @@ function App() {
 											animate={{ opacity: 1 }}
 											exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }}
 											transition={{ type: "spring", stiffness: 400, damping: 30 }}
-											style={{ width: "100%", height: "100%" }}
 										>
 											<CommandCenterFull
 												wifiEnabled={wifiEnabled}
