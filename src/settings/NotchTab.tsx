@@ -14,7 +14,6 @@ import {
 	X,
 	Flame,
 	RotateCcw,
-	Repeat,
 	Sliders,
 	MoveVertical,
 	Shield,
@@ -94,7 +93,7 @@ interface NotchTabProps {
 
 const PANEL_DEFINITIONS: Record<NotchPanelId, { name: string; icon: any }> = {
 	"command-center": {
-		name: "Command Center",
+		name: "Command Center (Dashboard)",
 		icon: Sliders
 	},
 	"calendar": {
@@ -102,11 +101,11 @@ const PANEL_DEFINITIONS: Record<NotchPanelId, { name: string; icon: any }> = {
 		icon: Calendar
 	},
 	"timers": {
-		name: "Timers",
+		name: "Timers & Alarms",
 		icon: Timer
 	},
 	"notifications": {
-		name: "Notifications",
+		name: "Notification Center",
 		icon: BellRing
 	}
 };
@@ -180,9 +179,10 @@ export function NotchTab({
 		? notchPanelsOrder
 		: DEFAULT_NOTCH_PANELS_ORDER;
 
-	const handleSwapPanel = (idx: number, direction: 1 | -1) => {
+	const handleMovePanel = (idx: number, direction: -1 | 1) => {
 		if (!updateNotchPanelsOrder) return;
-		const targetIdx = (idx + direction + currentPanelsOrder.length) % currentPanelsOrder.length;
+		const targetIdx = idx + direction;
+		if (targetIdx < 0 || targetIdx >= currentPanelsOrder.length) return;
 		const next = [...currentPanelsOrder];
 		const temp = next[idx];
 		next[idx] = next[targetIdx];
@@ -381,61 +381,69 @@ export function NotchTab({
 			<div className="setting-group-label setting-group-label--spaced">Panels & Navigation</div>
 			<div className="setting-group">
 
-				<SettingRow
-					icon={Repeat}
-					label="Panel Navigation Order"
-					desc="Sequence when cycling through notch panels (wraps circularly)"
-				>
-					<div className="panel-order-row">
-						<div className="panel-order-chips">
-							{currentPanelsOrder.map((id, idx) => {
-								const meta = PANEL_DEFINITIONS[id] || { name: id, icon: PanelTop };
-								const Icon = meta.icon;
-								const isStart = !notchRememberPanel && id === notchDefaultPanel;
-								const isDisabled = id === "calendar" && !calendarEnabled;
-								return (
-									<div
-										key={id}
-										className={`panel-order-chip ${isStart ? "is-start" : ""} ${isDisabled ? "is-disabled" : ""}`}
-									>
-										<span className="panel-order-chip-index">{idx + 1}</span>
-										<Icon size={12} className="panel-order-chip-icon" />
-										<span className="panel-order-chip-name">{meta.name}</span>
-										{isStart && <span className="panel-order-chip-star" title="Default Start Tab">⭐</span>}
-										{isDisabled && <span className="panel-order-chip-off">Off</span>}
-										<div className="panel-order-chip-btns">
-											<button
-												type="button"
-												className="panel-order-arrow-btn"
-												onClick={() => handleSwapPanel(idx, -1)}
-												title="Move earlier in cycle"
-											>
-												◀
-											</button>
-											<button
-												type="button"
-												className="panel-order-arrow-btn"
-												onClick={() => handleSwapPanel(idx, 1)}
-												title="Move later in cycle"
-											>
-												▶
-											</button>
-										</div>
-									</div>
-								);
-							})}
+				<div className="panel-order-section">
+					<div className="panel-order-header">
+						<div className="panel-order-info">
+							<div className="setting-label">Panel Navigation Order</div>
+							<div className="setting-desc">Reorder the sequence when cycling through notch panels</div>
 						</div>
 						<button
 							type="button"
-							className="settings-btn settings-btn-subtle panel-order-reset"
+							className="settings-btn settings-btn-subtle panel-order-reset-btn"
 							onClick={handleResetPanelOrder}
 							title="Reset order to default"
 						>
 							<RotateCcw size={11} />
-							<span>Reset</span>
+							<span>Reset Order</span>
 						</button>
 					</div>
-				</SettingRow>
+
+					<div className="panel-order-list">
+						{currentPanelsOrder.map((id, idx) => {
+							const meta = PANEL_DEFINITIONS[id] || { name: id, icon: PanelTop };
+							const Icon = meta.icon;
+							const isStart = !notchRememberPanel && id === notchDefaultPanel;
+							const isDisabled = id === "calendar" && !calendarEnabled;
+
+							return (
+								<div key={id} className={`panel-order-row-item ${isDisabled ? "is-disabled" : ""}`}>
+									<div className="panel-order-item-left">
+										<span className="panel-order-item-num">{idx + 1}</span>
+										<div className="panel-order-item-icon-box">
+											<Icon size={14} />
+										</div>
+										<span className="panel-order-item-name">{meta.name}</span>
+										{isStart && <span className="panel-order-item-start-badge">Default Start</span>}
+										{isDisabled && <span className="panel-order-item-disabled-badge">Disabled</span>}
+									</div>
+
+									<div className="panel-order-item-actions">
+										<button
+											type="button"
+											className="panel-order-move-btn"
+											disabled={idx === 0}
+											onClick={() => handleMovePanel(idx, -1)}
+											title="Move earlier in cycle"
+										>
+											▲
+										</button>
+										<button
+											type="button"
+											className="panel-order-move-btn"
+											disabled={idx === currentPanelsOrder.length - 1}
+											onClick={() => handleMovePanel(idx, 1)}
+											title="Move later in cycle"
+										>
+											▼
+										</button>
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				</div>
+
+				<div className="setting-divider" />
 
 				<SettingRow
 					icon={PanelTop}

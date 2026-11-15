@@ -48,7 +48,13 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Settings }[] = [
 ];
 
 function SettingsApp() {
-	const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+	const [activeTab, setActiveTabState] = useState<SettingsTab>(
+		() => (localStorage.getItem("bloom-settings-active-tab") as SettingsTab) || "notch"
+	);
+	const setActiveTab = (tab: SettingsTab) => {
+		setActiveTabState(tab);
+		localStorage.setItem("bloom-settings-active-tab", tab);
+	};
 	const [searchQuery, setSearchQuery] = useState("");
 	const settings = useSettings();
 	const { announcement, dismissed, dismiss } = useAnnouncement();
