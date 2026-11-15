@@ -4858,3 +4858,50 @@ pub fn clear_notification_history_cmd() {
     crate::notifications::clear_all_notifications();
 }
 
+#[tauri::command]
+pub fn set_fast_boot_cmd(enabled: bool) -> Result<(), String> {
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegCreateKeyW, RegDeleteValueW, RegOpenKeyExW, RegSetValueExW, HKEY,
+        HKEY_CURRENT_USER, KEY_SET_VALUE, REG_DWORD,
+    };
+    use windows::core::PCWSTR;
+
+    unsafe {
+        let key_path = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize\0"
+            .encode_utf16()
+            .collect::<Vec<u16>>();
+        let val_name = "StartupDelayInMSec\0".encode_utf16().collect::<Vec<u16>>();
+
+        let mut hkey = HKEY::default();
+        if enabled {
+            if RegCreateKeyW(
+                HKEY_CURRENT_USER,
+                PCWSTR::from_raw(key_path.as_ptr()),
+                &mut hkey,
+            ).is_ok() {
+                let zero: u32 = 0;
+                let _ = RegSetValueExW(
+                    hkey,
+                    PCWSTR::from_raw(val_name.as_ptr()),
+                    Some(0),
+                    REG_DWORD,
+                    Some(std::slice::from_raw_parts(&zero as *const u32 as *const u8, 4)),
+                );
+                let _ = RegCloseKey(hkey);
+            }
+        } else {
+            if RegOpenKeyExW(
+                HKEY_CURRENT_USER,
+                PCWSTR::from_raw(key_path.as_ptr()),
+                Some(0),
+                KEY_SET_VALUE,
+                &mut hkey,
+            ).is_ok() {
+                let _ = RegDeleteValueW(hkey, PCWSTR::from_raw(val_name.as_ptr()));
+                let _ = RegCloseKey(hkey);
+            }
+        }
+    }
+    Ok(())
+}
+

@@ -277,6 +277,7 @@ fn main() {
             set_windows_toast_suppression_cmd,
             set_taskbar_visibility_cmd,
             clear_notification_history_cmd,
+            set_fast_boot_cmd,
             dock_extras::get_dock_extras,
             dock_extras::open_dock_extra,
             dock_extras::eject_dock_extra,

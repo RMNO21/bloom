@@ -234,6 +234,21 @@ const Dock = memo(function Dock() {
 	const [scale, setScale] = useState(() =>
 		parseFloat(localStorage.getItem("bloom-scale") || "1.0")
 	);
+	const [dockIconSize, setDockIconSize] = useState(() =>
+		Number(localStorage.getItem("bloom-dock-icon-size") || "44")
+	);
+	const [dockMagnification, setDockMagnification] = useState(
+		() => localStorage.getItem("bloom-dock-magnification") !== "false"
+	);
+	const [dockMagScale, setDockMagScale] = useState(() =>
+		Number(localStorage.getItem("bloom-dock-mag-scale") || "1.25")
+	);
+	const [dockIndicatorStyle, setDockIndicatorStyle] = useState(
+		() => localStorage.getItem("bloom-dock-indicator-style") || "dot"
+	);
+	const [dockPosition, setDockPosition] = useState(
+		() => localStorage.getItem("bloom-dock-position") || "center"
+	);
 	const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
 	const [showSystemTray, setShowSystemTray] = useState(false);
 	const [allTrayApps, setAllTrayApps] = useState<TrayApp[]>([]);
@@ -581,6 +596,36 @@ const Dock = memo(function Dock() {
 		"bloom-dock-task-view": setDockTaskView,
 		"bloom-start-icon": setStartIcon,
 		"bloom-scale": setScale,
+		"bloom-dock-icon-size": (v: unknown) => {
+			const size = Number(v) || 44;
+			setDockIconSize(size);
+			localStorage.setItem("bloom-dock-icon-size", String(size));
+		},
+		"bloom-dock-magnification": (v: unknown) => {
+			const val = v === true || v === "true";
+			setDockMagnification(val);
+			localStorage.setItem("bloom-dock-magnification", String(val));
+		},
+		"bloom-dock-mag-scale": (v: unknown) => {
+			const scaleVal = Number(v) || 1.25;
+			setDockMagScale(scaleVal);
+			localStorage.setItem("bloom-dock-mag-scale", String(scaleVal));
+		},
+		"bloom-dock-indicator-style": (v: unknown) => {
+			const style = String(v) || "dot";
+			setDockIndicatorStyle(style);
+			localStorage.setItem("bloom-dock-indicator-style", style);
+		},
+		"bloom-dock-position": (v: unknown) => {
+			const pos = String(v) || "center";
+			setDockPosition(pos);
+			localStorage.setItem("bloom-dock-position", pos);
+		},
+		"bloom-dock-hide-taskbar": (v: unknown) => {
+			const hide = v === true || v === "true";
+			localStorage.setItem("bloom-dock-hide-taskbar", String(hide));
+			invoke("set_taskbar_visibility_cmd", { visible: !hide }).catch(() => {});
+		},
 		"bloom-dock-extras-position": setDockExtrasPosition,
 		"bloom-dock-extras-drives": () => setDockExtrasRevision((r) => r + 1),
 		"bloom-dock-extras-recycle-bin": () => setDockExtrasRevision((r) => r + 1),
@@ -1379,13 +1424,25 @@ const Dock = memo(function Dock() {
 	);
 
 	return (
-		<div className={`dock-container ${isDragging ? "dragging" : ""}`} onClick={closeMenu}>
+		<div
+			className={`dock-container ${isDragging ? "dragging" : ""} ${dockMagnification ? "dock-magnification-enabled" : ""}`}
+			data-indicator-style={dockIndicatorStyle}
+			style={{
+				"--dock-icon-size": `${dockIconSize}px`,
+				"--dock-img-size": `${Math.round(dockIconSize * 0.77)}px`,
+				"--dock-svg-size": `${Math.round(dockIconSize * 0.65)}px`,
+				"--dock-mag-scale": dockMagScale
+			} as React.CSSProperties}
+			onClick={closeMenu}
+		>
 			<div
 				style={{
 					width: "100%",
 					height: "100%",
 					display: "flex",
-					justifyContent: "center",
+					justifyContent: dockPosition === "left" ? "flex-start" : dockPosition === "right" ? "flex-end" : "center",
+					paddingLeft: dockPosition === "left" ? "32px" : undefined,
+					paddingRight: dockPosition === "right" ? "32px" : undefined,
 					alignItems: "flex-end"
 				}}
 			>

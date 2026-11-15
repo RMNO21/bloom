@@ -507,6 +507,54 @@ function App() {
 	});
 	const [notchOffsetY, setNotchOffsetY] = useState(() => Number(localStorage.getItem("bloom-notch-offset-y") || "0"));
 	const [notchCornerRadius, setNotchCornerRadius] = useState(() => Number(localStorage.getItem("bloom-notch-corner-radius") || "18"));
+	const [notchWidthOffset, setNotchWidthOffset] = useState(() => Number(localStorage.getItem("bloom-notch-width-offset") || "0"));
+	const [notchCloseOutside, setNotchCloseOutside] = useState(() => localStorage.getItem("bloom-notch-close-outside") !== "false");
+	const notchCloseOutsideRef = useRef(notchCloseOutside);
+	notchCloseOutsideRef.current = notchCloseOutside;
+
+	const [notchProtectStartMenu, setNotchProtectStartMenu] = useState(() => localStorage.getItem("bloom-notch-protect-startmenu") !== "false");
+	const notchProtectStartMenuRef = useRef(notchProtectStartMenu);
+	notchProtectStartMenuRef.current = notchProtectStartMenu;
+
+	const [notchFullscreenDisable, setNotchFullscreenDisable] = useState(() => localStorage.getItem("bloom-notch-fullscreen-disable") !== "false");
+	const notchFullscreenDisableRef = useRef(notchFullscreenDisable);
+	notchFullscreenDisableRef.current = notchFullscreenDisable;
+
+	const [interceptNotifications, setInterceptNotifications] = useState(() => localStorage.getItem("bloom-intercept-notifications") !== "false");
+	const interceptNotificationsRef = useRef(interceptNotifications);
+	interceptNotificationsRef.current = interceptNotifications;
+
+	const [notifDuration, setNotifDuration] = useState(() => Number(localStorage.getItem("bloom-notif-duration") || "6"));
+	const notifDurationRef = useRef(notifDuration);
+	notifDurationRef.current = notifDuration;
+
+	const [notifSound, setNotifSound] = useState(() => localStorage.getItem("bloom-notif-sound") !== "false");
+	const notifSoundRef = useRef(notifSound);
+	notifSoundRef.current = notifSound;
+
+	const [notifQuickReply, setNotifQuickReply] = useState(() => localStorage.getItem("bloom-notif-quick-reply") !== "false");
+	const notifQuickReplyRef = useRef(notifQuickReply);
+	notifQuickReplyRef.current = notifQuickReply;
+
+	const [notifCatMessages, setNotifCatMessages] = useState(() => localStorage.getItem("bloom-notif-cat-messages") !== "false");
+	const notifCatMessagesRef = useRef(notifCatMessages);
+	notifCatMessagesRef.current = notifCatMessages;
+
+	const [notifCatAlarms, setNotifCatAlarms] = useState(() => localStorage.getItem("bloom-notif-cat-alarms") !== "false");
+	const notifCatAlarmsRef = useRef(notifCatAlarms);
+	notifCatAlarmsRef.current = notifCatAlarms;
+
+	const [notifCatCalls, setNotifCatCalls] = useState(() => localStorage.getItem("bloom-notif-cat-calls") !== "false");
+	const notifCatCallsRef = useRef(notifCatCalls);
+	notifCatCallsRef.current = notifCatCalls;
+
+	const [notifCatSystem, setNotifCatSystem] = useState(() => localStorage.getItem("bloom-notif-cat-system") !== "false");
+	const notifCatSystemRef = useRef(notifCatSystem);
+	notifCatSystemRef.current = notifCatSystem;
+
+	const [notifHistoryLimit, setNotifHistoryLimit] = useState(() => Number(localStorage.getItem("bloom-notif-history-limit") || "20"));
+	const notifHistoryLimitRef = useRef(notifHistoryLimit);
+	notifHistoryLimitRef.current = notifHistoryLimit;
 
 	useEffect(() => {
 		if (isReady && prevChargingRef.current !== null && prevChargingRef.current !== isCharging) {
@@ -1134,6 +1182,7 @@ function App() {
 			if (bloomModeRef.current === "notification") {
 				dismissActiveNotificationRef.current();
 			} else if (isOpenRef.current) {
+				if (!notchCloseOutsideRef.current) return;
 				panelCycleStepRef.current = 0;
 				notchPinnedRef.current = false;
 				releaseDeferredRef.current = false;
@@ -1241,20 +1290,92 @@ function App() {
 			},
 			"bloom-show-update-indicator": (value) => setShowUpdateIndicator(String(value) === "true"),
 			"bloom-time-format-24h": setTimeFormat24h,
-			"bloom-notif-duration": (v: unknown) => {
-				localStorage.setItem("bloom-notif-duration", String(v));
-			},
-			"bloom-notif-sound": (v: unknown) => {
-				localStorage.setItem("bloom-notif-sound", String(v));
-			},
 			"bloom-notch-offset-y": (v: unknown) => {
-				setNotchOffsetY(Number(v) || 0);
+				const val = Number(v) || 0;
+				setNotchOffsetY(val);
+				localStorage.setItem("bloom-notch-offset-y", String(val));
+			},
+			"bloom-notch-width-offset": (v: unknown) => {
+				const val = Number(v) || 0;
+				setNotchWidthOffset(val);
+				localStorage.setItem("bloom-notch-width-offset", String(val));
 			},
 			"bloom-notch-corner-radius": (v: unknown) => {
-				setNotchCornerRadius(Number(v) || 18);
+				const val = Number(v) || 18;
+				setNotchCornerRadius(val);
+				localStorage.setItem("bloom-notch-corner-radius", String(val));
+			},
+			"bloom-notch-close-outside": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotchCloseOutside(val);
+				notchCloseOutsideRef.current = val;
+				localStorage.setItem("bloom-notch-close-outside", String(val));
+			},
+			"bloom-notch-protect-startmenu": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotchProtectStartMenu(val);
+				notchProtectStartMenuRef.current = val;
+				localStorage.setItem("bloom-notch-protect-startmenu", String(val));
 			},
 			"bloom-notch-fullscreen-disable": (v: unknown) => {
-				localStorage.setItem("bloom-notch-fullscreen-disable", String(v));
+				const val = v === true || v === "true";
+				setNotchFullscreenDisable(val);
+				notchFullscreenDisableRef.current = val;
+				localStorage.setItem("bloom-notch-fullscreen-disable", String(val));
+			},
+			"bloom-intercept-notifications": (v: unknown) => {
+				const val = v === true || v === "true";
+				setInterceptNotifications(val);
+				interceptNotificationsRef.current = val;
+				localStorage.setItem("bloom-intercept-notifications", String(val));
+			},
+			"bloom-notif-duration": (v: unknown) => {
+				const val = Number(v) || 6;
+				setNotifDuration(val);
+				notifDurationRef.current = val;
+				localStorage.setItem("bloom-notif-duration", String(val));
+			},
+			"bloom-notif-sound": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotifSound(val);
+				notifSoundRef.current = val;
+				localStorage.setItem("bloom-notif-sound", String(val));
+			},
+			"bloom-notif-quick-reply": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotifQuickReply(val);
+				notifQuickReplyRef.current = val;
+				localStorage.setItem("bloom-notif-quick-reply", String(val));
+			},
+			"bloom-notif-cat-messages": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotifCatMessages(val);
+				notifCatMessagesRef.current = val;
+				localStorage.setItem("bloom-notif-cat-messages", String(val));
+			},
+			"bloom-notif-cat-alarms": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotifCatAlarms(val);
+				notifCatAlarmsRef.current = val;
+				localStorage.setItem("bloom-notif-cat-alarms", String(val));
+			},
+			"bloom-notif-cat-calls": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotifCatCalls(val);
+				notifCatCallsRef.current = val;
+				localStorage.setItem("bloom-notif-cat-calls", String(val));
+			},
+			"bloom-notif-cat-system": (v: unknown) => {
+				const val = v === true || v === "true";
+				setNotifCatSystem(val);
+				notifCatSystemRef.current = val;
+				localStorage.setItem("bloom-notif-cat-system", String(val));
+			},
+			"bloom-notif-history-limit": (v: unknown) => {
+				const val = Number(v) || 20;
+				setNotifHistoryLimit(val);
+				notifHistoryLimitRef.current = val;
+				localStorage.setItem("bloom-notif-history-limit", String(val));
 			}
 		},
 		[windowLabel]
@@ -1511,17 +1632,18 @@ function App() {
 
 	useEffect(() => {
 		const unlistenPromise = listen<NotificationItem>("bloom-new-notification", (event) => {
+			if (!interceptNotificationsRef.current) return;
 			const data = event.payload;
 			invoke("frontend_debug", { msg: `Event bloom-new-notification received in window '${windowLabel}'! dndActive=${dndActiveRef.current}, payload=${JSON.stringify(data)}` }).catch(() => {});
 			if (!data || (!data.title && !data.body)) return;
 
 			const cat = data.category || "general";
-			if (cat === "message" && localStorage.getItem("bloom-notif-cat-messages") === "false") return;
-			if (cat === "alarm" && localStorage.getItem("bloom-notif-cat-alarms") === "false") return;
-			if (cat === "call" && localStorage.getItem("bloom-notif-cat-calls") === "false") return;
-			if (cat === "system" && localStorage.getItem("bloom-notif-cat-system") === "false") return;
+			if (cat === "message" && !notifCatMessagesRef.current) return;
+			if (cat === "alarm" && !notifCatAlarmsRef.current) return;
+			if (cat === "call" && !notifCatCallsRef.current) return;
+			if (cat === "system" && !notifCatSystemRef.current) return;
 
-			const maxHistory = Number(localStorage.getItem("bloom-notif-history-limit") || "20");
+			const maxHistory = notifHistoryLimitRef.current || 20;
 			setNotificationsList((prev) => [data, ...prev.filter((n) => n.id !== data.id)].slice(0, maxHistory));
 
 			// If Do Not Disturb is active, save to history silently without popping out
@@ -1538,8 +1660,10 @@ function App() {
 			setBloomMode("notification");
 			setInteractionState("active");
 
-			// Play subtle Dynamic Island notification chime
-			playNotificationChime();
+			// Play subtle Dynamic Island notification chime only if sound enabled
+			if (notifSoundRef.current) {
+				playNotificationChime();
+			}
 
 			if (notchMode === "peek") {
 				triggerEventPeek(8000);
@@ -1555,7 +1679,7 @@ function App() {
 			if (notifResumeTimeoutRef.current) {
 				clearTimeout(notifResumeTimeoutRef.current);
 			}
-			const durationSec = Number(localStorage.getItem("bloom-notif-duration") || "6");
+			const durationSec = notifDurationRef.current || 6;
 			if (durationSec > 0) {
 				notifTimeoutRef.current = setTimeout(() => {
 					dismissActiveNotification();
@@ -3029,40 +3153,39 @@ function App() {
 
 	// Calculate width dynamically based on enabled features
 	const getDynamicWidth = () => {
-		if (activeRingingAlarm) return 380;
-		if (bloomMode === "notification" && activeNotification) return 410;
-		if (bloomMode === "notifications" && isOpen) return 380;
-		if (bloomMode === "timers" && isOpen) return 380;
-		if (bloomMode === "announcement" && announcement && !announcementDismissed) return 380;
-		if (isCalendarMode && isOpen) return 480;
-		if (bloomMode === "shelf") return 380;
-		if (bloomMode === "command-center" && isOpen) return 380;
-		if (bloomMode === "wifi" || bloomMode === "bluetooth") return 350;
-		if ((bloomMode === "music" || isMusicMode) && isOpen) return mediaLayout === "compact" ? 300 : 340;
-		if (bloomMode === "music" && !isOpen) {
-			let w = 140 - clock24hTrim;
+		let w = 140 - clock24hTrim;
+		if (activeRingingAlarm) w = 380;
+		else if (bloomMode === "notification" && activeNotification) w = 410;
+		else if (bloomMode === "notifications" && isOpen) w = 380;
+		else if (bloomMode === "timers" && isOpen) w = 380;
+		else if (bloomMode === "announcement" && announcement && !announcementDismissed) w = 380;
+		else if (isCalendarMode && isOpen) w = 480;
+		else if (bloomMode === "shelf") w = 380;
+		else if (bloomMode === "command-center" && isOpen) w = 380;
+		else if (bloomMode === "wifi" || bloomMode === "bluetooth") w = 350;
+		else if ((bloomMode === "music" || isMusicMode) && isOpen) w = mediaLayout === "compact" ? 300 : 340;
+		else if (bloomMode === "music" && !isOpen) {
+			w = 140 - clock24hTrim;
 			if (settingsVisualizerEnabled && isPlaying) w += 30;
 			if (settingsAlbumArtEnabled) w += 30;
-			return w;
 		}
-		if (showMusicOnStatusHover) {
-			return 170 + (settingsVisualizerEnabled ? 30 : 0);
+		else if (showMusicOnStatusHover) {
+			w = 170 + (settingsVisualizerEnabled ? 30 : 0);
 		}
-		if (!isOpen && isHovered) {
+		else if (!isOpen && isHovered) {
 			const totalWidgets = statusWidgets.left.length + statusWidgets.right.length;
 			if (totalWidgets > 0) {
-				return Math.max(Math.min(220 + totalWidgets * 50, 480) - clock24hTrim, statusFitWidth);
+				w = Math.max(Math.min(220 + totalWidgets * 50, 480) - clock24hTrim, statusFitWidth);
 			}
 		}
-		if ((showPowerPulse || showLowBatteryPulse || showUpdatePulse) && !isHovered) return 200;
-
-		let w = 140 - clock24hTrim;
-		if (isMusicMode) {
+		else if ((showPowerPulse || showLowBatteryPulse || showUpdatePulse) && !isHovered) {
+			w = 200;
+		} else if (isMusicMode) {
 			if (settingsVisualizerEnabled && isPlaying) w += 30;
 			if (settingsAlbumArtEnabled) w += 30;
 		}
 
-		return w;
+		return Math.max(100, Math.round(w + notchWidthOffset));
 	};
 
 	const getDynamicHeight = () => {
@@ -3128,8 +3251,8 @@ function App() {
 		: ((isExpanded && isVisible && !isHidden) || isNotchActive)
 			? getDynamicWidth()
 			: isImpacted
-				? 39.1
-				: 30.6;
+				? Math.max(30, 39.1 + notchWidthOffset)
+				: Math.max(25, 30.6 + notchWidthOffset);
 	const pillTargetHeight = !isReady ? 34 : getDynamicHeight();
 	// Shadow and the edge flares beside the pill.
 	pillTargetRef.current = notchPillBox(
@@ -3213,10 +3336,10 @@ function App() {
 						opacity: (isVisible || isNotchActive) ? 1 : 0,
 						scaleX: 1,
 						scaleY: 1,
-						borderTopLeftRadius: isImpacted ? 0 : 18,
-						borderTopRightRadius: isImpacted ? 0 : 18,
-						borderBottomLeftRadius: isCalendarMode ? 28 : notchCornerRadius,
-						borderBottomRightRadius: isCalendarMode ? 28 : notchCornerRadius,
+						borderTopLeftRadius: (isImpacted && notchOffsetY === 0) ? 0 : notchCornerRadius,
+						borderTopRightRadius: (isImpacted && notchOffsetY === 0) ? 0 : notchCornerRadius,
+						borderBottomLeftRadius: isCalendarMode ? Math.max(28, notchCornerRadius) : notchCornerRadius,
+						borderBottomRightRadius: isCalendarMode ? Math.max(28, notchCornerRadius) : notchCornerRadius,
 						filter: (isVisible || isNotchActive) ? "blur(0px)" : "blur(8px)",
 						pointerEvents: (isVisible || isNotchActive) ? "auto" : "none"
 					}}
@@ -4095,7 +4218,9 @@ function App() {
 											) : (
 												<div className="notif-actions-row">
 													{activeNotification.actions && activeNotification.actions.length > 0 ? (
-														activeNotification.actions.map((action, idx) => {
+														activeNotification.actions
+															.filter((action) => notifQuickReplyRef.current || action.toLowerCase() !== "reply")
+															.map((action, idx) => {
 															const actLower = action.toLowerCase();
 															let btnClass = "secondary";
 															if (actLower === "open" || actLower === "view") btnClass = "primary";

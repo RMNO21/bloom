@@ -189,7 +189,7 @@ unsafe extern "system" fn keyboard_hook_proc(
     lparam: windows::Win32::Foundation::LPARAM,
 ) -> windows::Win32::Foundation::LRESULT {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
-        GetAsyncKeyState, VIRTUAL_KEY, VK_CONTROL, VK_ESCAPE, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT, VK_SPACE,
+        GetAsyncKeyState, VIRTUAL_KEY, VK_CONTROL, VK_ESCAPE, VK_LWIN, VK_RWIN, VK_SHIFT, VK_SPACE,
     };
     use windows::Win32::UI::WindowsAndMessaging::{
         KBDLLHOOKSTRUCT, LLKHF_INJECTED, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
@@ -210,6 +210,34 @@ unsafe extern "system" fn keyboard_hook_proc(
                         let _ = app.emit("notch-collapse-outside", ());
                     }
                     return windows::Win32::Foundation::LRESULT(1);
+                }
+            }
+
+            let ctrl_down = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
+            let shift_down = (GetAsyncKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0;
+
+            if is_down && ctrl_down && shift_down {
+                if let Some(app) = KEYBOARD_HOOK_APP_HANDLE.get().cloned() {
+                    let fg_fs = CURRENT_FOREGROUND_FULLSCREEN.load(Ordering::Relaxed);
+                    let fs_disable = crate::utils::get_setting_str(&app, "bloom-notch-fullscreen-disable")
+                        .map(|s| s != "false")
+                        .unwrap_or(true);
+
+                    if !(fg_fs && fs_disable) {
+                        if vk_code == VK_SPACE {
+                            toggle_notch_global(app);
+                            return windows::Win32::Foundation::LRESULT(1);
+                        } else if vk_code.0 == b'D' as u16 {
+                            let _ = app.emit_to("dock", "toggle-dock-visibility", ());
+                            return windows::Win32::Foundation::LRESULT(1);
+                        } else if vk_code.0 == b'N' as u16 {
+                            let _ = app.emit("open-notification-center", ());
+                            return windows::Win32::Foundation::LRESULT(1);
+                        } else if vk_code.0 == 0xBC { // VK_OEM_COMMA ','
+                            let _ = app.emit("open-settings", ());
+                            return windows::Win32::Foundation::LRESULT(1);
+                        }
+                    }
                 }
             }
 
@@ -493,8 +521,10 @@ unsafe extern "system" fn focus_event_proc(
         return;
     }
 
-    // When focus moves to another application while the notch is open, collapse the notch immediately!
-    if NOTCH_IS_OPEN.load(Ordering::Relaxed) {
+    // When focus moves to another application while the notch is open, collapse the notch immediately
+    // unless the Start Menu is open and Start Menu protection is active!
+    let start_open = crate::commands::is_start_menu_open();
+    if NOTCH_IS_OPEN.load(Ordering::Relaxed) && !start_open {
         NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
         if let Some(app) = WINDOW_CHANGE_APP_HANDLE.get().cloned() {
             std::thread::spawn(move || {
@@ -647,8 +677,10 @@ unsafe extern "system" fn thumbnail_capture_proc(
         return;
     }
 
-    // When focus moves to another application while the notch is open, collapse the notch immediately!
-    if NOTCH_IS_OPEN.load(Ordering::Relaxed) {
+    // When focus moves to another application while the notch is open, collapse the notch immediately
+    // unless the Start Menu is open and Start Menu protection is active!
+    let start_open = crate::commands::is_start_menu_open();
+    if NOTCH_IS_OPEN.load(Ordering::Relaxed) && !start_open {
         NOTCH_IS_OPEN.store(false, Ordering::Relaxed);
         if let Some(app) = WINDOW_CHANGE_APP_HANDLE.get().cloned() {
             std::thread::spawn(move || {

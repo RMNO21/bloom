@@ -141,7 +141,8 @@ export function useSettings() {
 	const toggleFastBoot = () => {
 		const next = !fastBoot;
 		setFastBoot(next);
-		localStorage.setItem("bloom-fast-boot", next.toString());
+		saveSetting("bloom-fast-boot", next.toString());
+		invoke("set_fast_boot_cmd", { enabled: next }).catch(() => {});
 	};
 
 	const [interceptNotifications, setInterceptNotifications] = useState(
@@ -150,7 +151,7 @@ export function useSettings() {
 	const toggleInterceptNotifications = () => {
 		const next = !interceptNotifications;
 		setInterceptNotifications(next);
-		localStorage.setItem("bloom-intercept-notifications", next.toString());
+		saveSetting("bloom-intercept-notifications", next.toString());
 	};
 
 	const [pomoFocusMins, setPomoFocusMins] = useState(

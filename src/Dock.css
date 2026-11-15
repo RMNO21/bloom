@@ -257,8 +257,8 @@ body {
 }
 
 .dock-icon {
-	width: 36px;
-	height: 36px;
+	width: var(--dock-icon-size, 36px);
+	height: var(--dock-icon-size, 36px);
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -266,12 +266,12 @@ body {
 	background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
 	color: var(--bloom-text, white);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	transition: opacity 0.2s ease;
+	transition: opacity 0.2s ease, transform 0.15s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .dock-icon img {
-	width: 28px;
-	height: 28px;
+	width: var(--dock-img-size, 28px);
+	height: var(--dock-img-size, 28px);
 	object-fit: contain;
 	pointer-events: none;
 	-webkit-user-drag: none;
@@ -279,9 +279,15 @@ body {
 }
 
 .dock-icon svg {
-	width: 24px;
-	height: 24px;
+	width: var(--dock-svg-size, 24px);
+	height: var(--dock-svg-size, 24px);
 	stroke: rgba(255, 255, 255, 0.9);
+}
+
+/* Hover Magnification */
+.dock-magnification-enabled .dock-icon-wrapper:hover .dock-icon {
+	transform: scale(var(--dock-mag-scale, 1.25)) translateY(-4px);
+	z-index: 10;
 }
 
 .dock-icon-only .dock-icon {
@@ -453,6 +459,19 @@ body {
 	background: white;
 	border-radius: 50%;
 	box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+	transition: all 0.2s ease;
+}
+
+[data-indicator-style="bar"] .active-indicator {
+	width: 14px;
+	height: 2.5px;
+	border-radius: 2px;
+	bottom: -3px;
+}
+
+[data-indicator-style="none"] .active-indicator,
+[data-indicator-style="none"] .window-dots {
+	display: none !important;
 }
 
 .window-dots {
@@ -999,4 +1018,25 @@ body {
 
 .light-mode .dock-menu-header-fallback {
 	background: rgba(0, 0, 0, 0.1);
+}
+
+/* Zero Shadow Mode & Border Styles */
+html.zero-shadow .dock-bar,
+html.zero-shadow .dock-item,
+html.zero-shadow .preview-tooltip,
+html.zero-shadow .dock-icon,
+html.zero-shadow * {
+	box-shadow: none !important;
+	filter: drop-shadow(0 0 0 transparent) !important;
+}
+
+html[data-border-style="none"] .dock-bar,
+html[data-border-style="none"] .preview-tooltip {
+	border: none !important;
+}
+
+html[data-border-style="glow"] .dock-bar,
+html[data-border-style="glow"] .preview-tooltip {
+	border: 1px solid rgba(255, 255, 255, 0.35) !important;
+	box-shadow: 0 0 12px rgba(255, 255, 255, 0.18) !important;
 }

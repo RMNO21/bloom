@@ -3210,3 +3210,32 @@ img {
 	background: rgba(255, 255, 255, 0.18);
 	color: #fff;
 }
+
+/* Zero Shadow Mode */
+html.zero-shadow *,
+html.zero-shadow .notch-pill,
+html.zero-shadow .droplet-notification-bubble,
+html.zero-shadow .activity-bubble,
+html.zero-shadow .shelf-item,
+html.zero-shadow .command-center-panel,
+html.zero-shadow .todo-panel,
+html.zero-shadow .timers-panel,
+html.zero-shadow .notes-panel,
+html.zero-shadow .notification-center-panel {
+	box-shadow: none !important;
+	filter: drop-shadow(0 0 0 transparent) !important;
+}
+
+/* Border Styles */
+html[data-border-style="none"] .notch-pill,
+html[data-border-style="none"] .droplet-notification-bubble,
+html[data-border-style="none"] .activity-bubble {
+	border: none !important;
+}
+
+html[data-border-style="glow"] .notch-pill,
+html[data-border-style="glow"] .droplet-notification-bubble,
+html[data-border-style="glow"] .activity-bubble {
+	border: 1px solid rgba(255, 255, 255, 0.35) !important;
+	box-shadow: 0 0 12px rgba(255, 255, 255, 0.18) !important;
+}

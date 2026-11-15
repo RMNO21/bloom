@@ -240,6 +240,50 @@ export async function applyTheme(
 		root.classList.add("theme-dark");
 		root.classList.remove("theme-light", "theme-custom", "theme-adaptive");
 	}
+
+	// Apply Zero Shadow Mode
+	const zeroShadow = localStorage.getItem("bloom-theme-zero-shadow") !== "false";
+	if (zeroShadow) {
+		root.classList.add("zero-shadow");
+		root.style.setProperty("--bloom-shadow", "none");
+		root.style.setProperty("--bloom-shadow-ambient", "none");
+		root.style.setProperty("--bloom-notch-shadow", "none");
+		root.style.setProperty("--bloom-dock-shadow", "none");
+		root.style.setProperty("--bloom-droplet-shadow", "none");
+		root.style.setProperty("--bloom-bubble-shadow", "none");
+	} else {
+		root.classList.remove("zero-shadow");
+		root.style.setProperty("--bloom-shadow", "0 16px 36px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25)");
+		root.style.setProperty("--bloom-shadow-ambient", "0 8px 24px rgba(0, 0, 0, 0.35)");
+		root.style.setProperty("--bloom-notch-shadow", "0 10px 30px rgba(0, 0, 0, 0.4)");
+		root.style.setProperty("--bloom-dock-shadow", "0 12px 32px rgba(0, 0, 0, 0.4)");
+		root.style.setProperty("--bloom-droplet-shadow", "0 14px 28px rgba(0, 0, 0, 0.35)");
+		root.style.setProperty("--bloom-bubble-shadow", "0 8px 20px rgba(0, 0, 0, 0.3)");
+	}
+
+	// Apply Border Style
+	const borderStyle = localStorage.getItem("bloom-border-style") || "subtle";
+	root.setAttribute("data-border-style", borderStyle);
+	if (borderStyle === "none") {
+		root.style.setProperty("--bloom-border", "transparent");
+		root.style.setProperty("--bloom-border-glow", "none");
+	} else if (borderStyle === "glow") {
+		root.style.setProperty("--bloom-border", "rgba(255, 255, 255, 0.35)");
+		root.style.setProperty("--bloom-border-glow", "0 0 10px rgba(255, 255, 255, 0.2)");
+	} else {
+		root.style.setProperty("--bloom-border-glow", "none");
+	}
+
+	// Apply Blur Style
+	const blurStyle = localStorage.getItem("bloom-blur-style") || "frosted";
+	root.setAttribute("data-blur-style", blurStyle);
+	if (blurStyle === "heavy") {
+		root.style.setProperty("--bloom-backdrop-blur", "blur(40px) saturate(180%)");
+	} else if (blurStyle === "acrylic") {
+		root.style.setProperty("--bloom-backdrop-blur", "blur(12px) saturate(120%)");
+	} else {
+		root.style.setProperty("--bloom-backdrop-blur", "blur(22px) saturate(150%)");
+	}
 }
 
 export function initTheme() {
@@ -292,7 +336,10 @@ export function initTheme() {
 		.catch(console.error);
 
 	// Helper: read all theme values from localStorage and apply
-	const applyThemeFromStorage = () => {
+	const applyThemeFromStorage = (key?: string, value?: any) => {
+		if (key && value !== undefined && value !== null) {
+			localStorage.setItem(key, String(value));
+		}
 		const mode = localStorage.getItem("bloom-theme-mode") || "dark";
 		const color = localStorage.getItem("bloom-theme-color") || "#007aff";
 		const opacity = parseFloat(localStorage.getItem("bloom-theme-opacity") || "0.80");
@@ -306,15 +353,17 @@ export function initTheme() {
 		"bloom-theme-color",
 		"bloom-theme-opacity",
 		"bloom-theme-saturation",
-		"bloom-theme-brightness"
+		"bloom-theme-brightness",
+		"bloom-theme-zero-shadow",
+		"bloom-border-style",
+		"bloom-blur-style"
 	];
 
 	// Listen to setting changes broadcasted from settings window
-	// (localStorage sync is handled by saveAndLocal in Settings.tsx; we just apply the theme)
 	const settingsPromise = listen<{ key: string; value: any }>("settings-changed", (event) => {
-		const { key } = event.payload;
+		const { key, value } = event.payload;
 		if (bloomThemeKeys.includes(key)) {
-			applyThemeFromStorage();
+			applyThemeFromStorage(key, value);
 		}
 	});
 
