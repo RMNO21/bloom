@@ -44,6 +44,7 @@ import { MyNotes } from "./components/MyNotes";
 import { TimersPanel } from "./components/TimersPanel";
 import { CommandCenterFull } from "./components/CommandCenterFull";
 import { alarmEngine, AlarmItem } from "./alarmEngine";
+import { timerEngine, TimerEngineState } from "./timerEngine";
 import {
 	Cpu,
 	MemoryStick,
@@ -817,6 +818,7 @@ function App() {
 
 	useEffect(() => {
 		alarmEngine.init();
+		timerEngine.init();
 		const unsub = alarmEngine.subscribeRinging((alarm) => {
 			setActiveRingingAlarm(alarm);
 		});
@@ -2304,7 +2306,6 @@ function App() {
 		} catch {}
 		return [5, 15, 25, 50];
 	});
-	const timerIntervalRef = useRef<any>(null);
 	const prevTimerFinishedRef = useRef(false);
 
 	const formatTimerTime = (totalSeconds: number) => {
@@ -2317,21 +2318,61 @@ function App() {
 		setIsTimerRunning(false);
 		setTimerSeconds(0);
 		setIsTimerFinished(false);
+		timerEngine.resetTimer();
+		timerEngine.dismissFinished();
 	};
 
+	// Synchronize with global TimerEngine (persists across collapse, panel switch, restart)
 	useEffect(() => {
-		if (isTimerRunning && timerSeconds > 0) {
-			timerIntervalRef.current = setInterval(() => {
-				setTimerSeconds((s) => s - 1);
-			}, 1000);
-		} else if (isTimerRunning && timerSeconds === 0) {
-			setIsTimerRunning(false);
-			setIsTimerFinished(true);
-		}
-		return () => {
-			if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-		};
-	}, [isTimerRunning, timerSeconds === 0]);
+		const unsub = timerEngine.subscribe((engine: TimerEngineState) => {
+			const pomoPhaseDuration =
+				engine.pomoPhase === "focus"
+					? engine.pomoFocusMins * 60
+					: engine.pomoPhase === "shortBreak"
+						? engine.pomoShortMins * 60
+						: engine.pomoLongMins * 60;
+			const isPomoActive =
+				engine.isPomoRunning ||
+				engine.isPomoFinished ||
+				(engine.pomoSecondsLeft < pomoPhaseDuration && engine.pomoSecondsLeft > 0);
+
+			const isTimerActive =
+				engine.isTimerRunning ||
+				engine.isTimerFinished ||
+				(engine.timerSecondsLeft < engine.timerTotalSeconds && engine.timerSecondsLeft > 0);
+
+			if (engine.activeTab === "pomodoro") {
+				if (isPomoActive) {
+					setTimerSeconds(engine.pomoSecondsLeft);
+					setIsTimerRunning(engine.isPomoRunning);
+					setIsTimerFinished(engine.isPomoFinished);
+				} else if (isTimerActive) {
+					setTimerSeconds(engine.timerSecondsLeft);
+					setIsTimerRunning(engine.isTimerRunning);
+					setIsTimerFinished(engine.isTimerFinished);
+				} else {
+					setTimerSeconds(0);
+					setIsTimerRunning(false);
+					setIsTimerFinished(false);
+				}
+			} else {
+				if (isTimerActive) {
+					setTimerSeconds(engine.timerSecondsLeft);
+					setIsTimerRunning(engine.isTimerRunning);
+					setIsTimerFinished(engine.isTimerFinished);
+				} else if (isPomoActive) {
+					setTimerSeconds(engine.pomoSecondsLeft);
+					setIsTimerRunning(engine.isPomoRunning);
+					setIsTimerFinished(engine.isPomoFinished);
+				} else {
+					setTimerSeconds(0);
+					setIsTimerRunning(false);
+					setIsTimerFinished(false);
+				}
+			}
+		});
+		return unsub;
+	}, []);
 
 	// Completion moment: chime once and reveal the notch in peek mode.
 	useEffect(() => {
@@ -3796,7 +3837,7 @@ function App() {
 																		{!isOpen && (timerSeconds > 0 || isTimerFinished) ? (
 																			<motion.span
 																				key="timer"
-																				className={`time compact-timer ${isTimerFinished ? "timer-finished" : ""}`}
+																				className={`time compact-timer ${isTimerFinished ? "timer-finished" : isTimerRunning ? "timer-running" : "timer-paused"}`}
 																				initial={{ rotateX: -90, opacity: 0 }}
 																				animate={{ rotateX: 0, opacity: 1 }}
 																				exit={{ rotateX: 90, opacity: 0 }}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
 	Hourglass,
@@ -15,9 +15,10 @@ import {
 	VolumeX
 } from "lucide-react";
 import { alarmEngine, AlarmItem } from "../alarmEngine";
+import { timerEngine, TimerEngineState, PomoPhase } from "../timerEngine";
 import "./TimersPanel.css";
 
-export type { AlarmItem };
+export type { AlarmItem, PomoPhase };
 
 export type TimersTab = "timer" | "pomodoro" | "alarm";
 
@@ -35,46 +36,6 @@ interface TimersPanelProps {
 	onRingingAlarmChange?: (alarm: AlarmItem | null) => void;
 }
 
-/* Web Audio Synthesizers for Timer Chime and Repeating Alarm */
-let audioCtx: AudioContext | null = null;
-const getAudioContext = (): AudioContext | null => {
-	try {
-		if (!audioCtx) audioCtx = new AudioContext();
-		if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-		return audioCtx;
-	} catch {
-		return null;
-	}
-};
-
-const playChimeTone = () => {
-	const ctx = getAudioContext();
-	if (!ctx) return;
-	const start = ctx.currentTime + 0.02;
-	const master = ctx.createGain();
-	master.gain.value = 0.45;
-	master.connect(ctx.destination);
-
-	const notes = [
-		{ freq: 880.0, at: 0 },
-		{ freq: 1108.73, at: 0.18 },
-		{ freq: 1318.51, at: 0.36 }
-	];
-	notes.forEach(({ freq, at }) => {
-		const osc = ctx.createOscillator();
-		const gain = ctx.createGain();
-		osc.type = "sine";
-		osc.frequency.value = freq;
-		gain.gain.setValueAtTime(0.0001, start + at);
-		gain.gain.exponentialRampToValueAtTime(0.35, start + at + 0.02);
-		gain.gain.exponentialRampToValueAtTime(0.0001, start + at + 1.2);
-		osc.connect(gain);
-		gain.connect(master);
-		osc.start(start + at);
-		osc.stop(start + at + 1.25);
-	});
-};
-
 export function TimersPanel({
 	onPinNotch,
 	timeFormat24h = false,
@@ -82,42 +43,46 @@ export function TimersPanel({
 	onTimerStatusChange,
 	onRingingAlarmChange
 }: TimersPanelProps) {
-	const [activeTab, setActiveTab] = useState<TimersTab>("timer");
-	const [soundEnabled, setSoundEnabled] = useState(true);
+	const [engineState, setEngineState] = useState<TimerEngineState>(() => timerEngine.getState());
+
+	useEffect(() => {
+		const unsub = timerEngine.subscribe((state) => {
+			setEngineState(state);
+		});
+		return unsub;
+	}, []);
+
+	const {
+		activeTab,
+		soundEnabled,
+		timerTotalSeconds,
+		timerSecondsLeft,
+		isTimerRunning,
+		isTimerFinished,
+		pomoPhase,
+		pomoFocusMins,
+		pomoShortMins,
+		pomoLongMins,
+		pomoCycleCount,
+		pomoSecondsLeft,
+		isPomoRunning,
+		isPomoFinished,
+		pomoTodayCompleted
+	} = engineState;
 
 	/* -------------------------------------------------------------
-	   1. COUNTDOWN TIMER STATE
+	   1. COUNTDOWN TIMER STATE & ENGINE SYNC
 	------------------------------------------------------------- */
-	const [timerTotalSeconds, setTimerTotalSeconds] = useState(25 * 60);
-	const [timerSecondsLeft, setTimerSecondsLeft] = useState(25 * 60);
-	const [isTimerRunning, setIsTimerRunning] = useState(false);
-	const [isTimerFinished, setIsTimerFinished] = useState(false);
-
 	// Custom duration input states (hours, minutes, seconds)
-	const [inputHours, setInputHours] = useState(0);
-	const [inputMinutes, setInputMinutes] = useState(25);
-	const [inputSeconds, setInputSeconds] = useState(0);
+	const [inputHours, setInputHours] = useState(() => engineState.inputHours);
+	const [inputMinutes, setInputMinutes] = useState(() => engineState.inputMinutes);
+	const [inputSeconds, setInputSeconds] = useState(() => engineState.inputSeconds);
 
-	// Timer interval
 	useEffect(() => {
-		let interval: any = null;
-		if (isTimerRunning && timerSecondsLeft > 0) {
-			interval = setInterval(() => {
-				setTimerSecondsLeft((prev) => {
-					if (prev <= 1) {
-						setIsTimerRunning(false);
-						setIsTimerFinished(true);
-						if (soundEnabled) playChimeTone();
-						return 0;
-					}
-					return prev - 1;
-				});
-			}, 1000);
-		}
-		return () => {
-			if (interval) clearInterval(interval);
-		};
-	}, [isTimerRunning, timerSecondsLeft, soundEnabled]);
+		setInputHours(engineState.inputHours);
+		setInputMinutes(engineState.inputMinutes);
+		setInputSeconds(engineState.inputSeconds);
+	}, [engineState.inputHours, engineState.inputMinutes, engineState.inputSeconds]);
 
 	// Broadcast timer state
 	useEffect(() => {
@@ -129,280 +94,7 @@ export function TimersPanel({
 				isFinished: isTimerFinished,
 				label: "Timer"
 			});
-		}
-	}, [timerSecondsLeft, isTimerRunning, isTimerFinished, activeTab, onTimerStatusChange]);
-
-	const handleStartTimer = () => {
-		getAudioContext();
-		if (timerSecondsLeft === 0) {
-			setTimerSecondsLeft(timerTotalSeconds);
-		}
-		setIsTimerRunning(true);
-		setIsTimerFinished(false);
-	};
-
-	const handlePauseTimer = () => {
-		setIsTimerRunning(false);
-	};
-
-	const handleResetTimer = () => {
-		setIsTimerRunning(false);
-		setIsTimerFinished(false);
-		setTimerSecondsLeft(timerTotalSeconds);
-	};
-
-	const handleSetPreset = (minutes: number) => {
-		const total = minutes * 60;
-		setTimerTotalSeconds(total);
-		setTimerSecondsLeft(total);
-		setIsTimerRunning(false);
-		setIsTimerFinished(false);
-		setInputHours(Math.floor(minutes / 60));
-		setInputMinutes(minutes % 60);
-		setInputSeconds(0);
-	};
-
-	const handleApplyCustomDuration = () => {
-		const total = inputHours * 3600 + inputMinutes * 60 + inputSeconds;
-		if (total > 0) {
-			setTimerTotalSeconds(total);
-			setTimerSecondsLeft(total);
-			setIsTimerRunning(false);
-			setIsTimerFinished(false);
-		}
-	};
-
-	const handleAdjustTimer = (deltaSec: number) => {
-		setTimerSecondsLeft((prev) => {
-			const next = Math.max(0, prev + deltaSec);
-			if (next === 0) {
-				setIsTimerRunning(false);
-				setIsTimerFinished(true);
-			}
-			return next;
-		});
-		setTimerTotalSeconds((prev) => Math.max(prev, prev + deltaSec));
-	};
-
-	/* -------------------------------------------------------------
-	   2. POMODORO STATE & PERSISTENCE
-	------------------------------------------------------------- */
-	type PomoPhase = "focus" | "shortBreak" | "longBreak";
-
-	const getTodayString = () => new Date().toISOString().split("T")[0];
-
-	const [pomoFocusMins, setPomoFocusMins] = useState<number>(() => {
-		try {
-			const v = localStorage.getItem("bloom_pomo_focus_mins");
-			return v ? Math.max(1, parseInt(v) || 25) : 25;
-		} catch {
-			return 25;
-		}
-	});
-
-	const [pomoShortMins, setPomoShortMins] = useState<number>(() => {
-		try {
-			const v = localStorage.getItem("bloom_pomo_short_mins");
-			return v ? Math.max(1, parseInt(v) || 5) : 5;
-		} catch {
-			return 5;
-		}
-	});
-
-	const [pomoLongMins, setPomoLongMins] = useState<number>(() => {
-		try {
-			const v = localStorage.getItem("bloom_pomo_long_mins");
-			return v ? Math.max(1, parseInt(v) || 15) : 15;
-		} catch {
-			return 15;
-		}
-	});
-
-	const [pomoCycleCount, setPomoCycleCount] = useState<number>(() => {
-		try {
-			const v = localStorage.getItem("bloom_pomo_cycle_count");
-			return v ? Math.max(1, Math.min(4, parseInt(v) || 1)) : 1;
-		} catch {
-			return 1;
-		}
-	});
-
-	const [pomoPhase, setPomoPhase] = useState<PomoPhase>(() => {
-		try {
-			const v = localStorage.getItem("bloom_pomo_phase") as PomoPhase;
-			if (v === "focus" || v === "shortBreak" || v === "longBreak") return v;
-		} catch {}
-		return "focus";
-	});
-
-	const [pomoTodayCompleted, setPomoTodayCompleted] = useState<number>(() => {
-		try {
-			const savedDate = localStorage.getItem("bloom_pomo_today_date");
-			const today = getTodayString();
-			if (savedDate === today) {
-				const v = localStorage.getItem("bloom_pomo_today_completed");
-				return v ? parseInt(v) || 0 : 0;
-			}
-		} catch {}
-		return 0;
-	});
-
-	const [pomoSecondsLeft, setPomoSecondsLeft] = useState<number>(() => {
-		const savedPhase = (() => {
-			try {
-				const v = localStorage.getItem("bloom_pomo_phase") as PomoPhase;
-				if (v === "focus" || v === "shortBreak" || v === "longBreak") return v;
-			} catch {}
-			return "focus";
-		})();
-		const focusM = (() => {
-			try {
-				const v = localStorage.getItem("bloom_pomo_focus_mins");
-				return v ? Math.max(1, parseInt(v) || 25) : 25;
-			} catch { return 25; }
-		})();
-		const shortM = (() => {
-			try {
-				const v = localStorage.getItem("bloom_pomo_short_mins");
-				return v ? Math.max(1, parseInt(v) || 5) : 5;
-			} catch { return 5; }
-		})();
-		const longM = (() => {
-			try {
-				const v = localStorage.getItem("bloom_pomo_long_mins");
-				return v ? Math.max(1, parseInt(v) || 15) : 15;
-			} catch { return 15; }
-		})();
-		if (savedPhase === "shortBreak") return shortM * 60;
-		if (savedPhase === "longBreak") return longM * 60;
-		return focusM * 60;
-	});
-
-	const [isPomoRunning, setIsPomoRunning] = useState(false);
-	const [isPomoFinished, setIsPomoFinished] = useState(false);
-
-	// Persist changes to localStorage
-	useEffect(() => {
-		try {
-			localStorage.setItem("bloom_pomo_focus_mins", pomoFocusMins.toString());
-			localStorage.setItem("bloom_pomo_short_mins", pomoShortMins.toString());
-			localStorage.setItem("bloom_pomo_long_mins", pomoLongMins.toString());
-			localStorage.setItem("bloom_pomo_cycle_count", pomoCycleCount.toString());
-			localStorage.setItem("bloom_pomo_phase", pomoPhase);
-			localStorage.setItem("bloom_pomo_today_completed", pomoTodayCompleted.toString());
-			localStorage.setItem("bloom_pomo_today_date", getTodayString());
-		} catch {}
-	}, [pomoFocusMins, pomoShortMins, pomoLongMins, pomoCycleCount, pomoPhase, pomoTodayCompleted]);
-
-	const pomoPhaseDuration = useMemo(() => {
-		if (pomoPhase === "focus") return pomoFocusMins * 60;
-		if (pomoPhase === "shortBreak") return pomoShortMins * 60;
-		return pomoLongMins * 60;
-	}, [pomoPhase, pomoFocusMins, pomoShortMins, pomoLongMins]);
-
-	// Switch phase manually
-	const handleSwitchPomoPhase = (newPhase: PomoPhase) => {
-		setPomoPhase(newPhase);
-		setIsPomoRunning(false);
-		setIsPomoFinished(false);
-		let dur = pomoFocusMins * 60;
-		if (newPhase === "shortBreak") dur = pomoShortMins * 60;
-		if (newPhase === "longBreak") dur = pomoLongMins * 60;
-		setPomoSecondsLeft(dur);
-	};
-
-	// Adjust custom duration for focus / short / long break
-	const handleAdjustPomoDuration = (type: "focus" | "short" | "long", deltaMin: number) => {
-		if (type === "focus") {
-			const next = Math.max(5, Math.min(90, pomoFocusMins + deltaMin));
-			setPomoFocusMins(next);
-			if (!isPomoRunning && pomoPhase === "focus") setPomoSecondsLeft(next * 60);
-		} else if (type === "short") {
-			const next = Math.max(1, Math.min(30, pomoShortMins + deltaMin));
-			setPomoShortMins(next);
-			if (!isPomoRunning && pomoPhase === "shortBreak") setPomoSecondsLeft(next * 60);
-		} else {
-			const next = Math.max(5, Math.min(60, pomoLongMins + deltaMin));
-			setPomoLongMins(next);
-			if (!isPomoRunning && pomoPhase === "longBreak") setPomoSecondsLeft(next * 60);
-		}
-	};
-
-	// Dismiss finished notification
-	const handleDismissPomoFinished = () => {
-		setIsPomoFinished(false);
-		advancePomoPhase(false);
-	};
-
-	// Advance and start immediately
-	const handlePomoAdvanceAndStart = () => {
-		setIsPomoFinished(false);
-		advancePomoPhase(true);
-	};
-
-	// Helper to advance pomo phase
-	const advancePomoPhase = (startImmediately: boolean) => {
-		if (pomoPhase === "focus") {
-			setPomoTodayCompleted((c) => c + 1);
-			if (pomoCycleCount >= 4) {
-				setPomoPhase("longBreak");
-				setPomoSecondsLeft(pomoLongMins * 60);
-			} else {
-				setPomoPhase("shortBreak");
-				setPomoSecondsLeft(pomoShortMins * 60);
-			}
-		} else if (pomoPhase === "shortBreak") {
-			setPomoCycleCount((prev) => Math.min(4, prev + 1));
-			setPomoPhase("focus");
-			setPomoSecondsLeft(pomoFocusMins * 60);
-		} else {
-			// After long break, reset to cycle 1 focus
-			setPomoCycleCount(1);
-			setPomoPhase("focus");
-			setPomoSecondsLeft(pomoFocusMins * 60);
-		}
-		setIsPomoRunning(startImmediately);
-	};
-
-	// Reset cycle back to session 1
-	const handleResetCycle = () => {
-		setPomoCycleCount(1);
-		setPomoPhase("focus");
-		setIsPomoRunning(false);
-		setIsPomoFinished(false);
-		setPomoSecondsLeft(pomoFocusMins * 60);
-	};
-
-	// Skip to next phase manually
-	const handleNextPomoPhase = () => {
-		if (soundEnabled) playChimeTone();
-		advancePomoPhase(false);
-	};
-
-	// Pomodoro countdown interval
-	useEffect(() => {
-		let interval: any = null;
-		if (isPomoRunning && pomoSecondsLeft > 0) {
-			interval = setInterval(() => {
-				setPomoSecondsLeft((prev) => {
-					if (prev <= 1) {
-						setIsPomoRunning(false);
-						setIsPomoFinished(true);
-						if (soundEnabled) playChimeTone();
-						return 0;
-					}
-					return prev - 1;
-				});
-			}, 1000);
-		}
-		return () => {
-			if (interval) clearInterval(interval);
-		};
-	}, [isPomoRunning, pomoSecondsLeft, soundEnabled]);
-
-	// Broadcast pomodoro state
-	useEffect(() => {
-		if (activeTab === "pomodoro") {
+		} else if (activeTab === "pomodoro") {
 			onTimerStatusChange?.({
 				type: isPomoRunning || isPomoFinished ? "pomodoro" : null,
 				seconds: pomoSecondsLeft,
@@ -411,7 +103,70 @@ export function TimersPanel({
 				label: pomoPhase === "focus" ? "Focus" : pomoPhase === "shortBreak" ? "Short Break" : "Long Break"
 			});
 		}
-	}, [pomoSecondsLeft, isPomoRunning, isPomoFinished, pomoPhase, activeTab, onTimerStatusChange]);
+	}, [
+		timerSecondsLeft,
+		isTimerRunning,
+		isTimerFinished,
+		pomoSecondsLeft,
+		isPomoRunning,
+		isPomoFinished,
+		pomoPhase,
+		activeTab,
+		onTimerStatusChange
+	]);
+
+	const handleStartTimer = () => {
+		timerEngine.startTimer();
+	};
+
+	const handlePauseTimer = () => {
+		timerEngine.pauseTimer();
+	};
+
+	const handleResetTimer = () => {
+		timerEngine.resetTimer();
+	};
+
+	const handleSetPreset = (minutes: number) => {
+		timerEngine.setTimerPreset(minutes);
+	};
+
+	const handleApplyCustomDuration = () => {
+		timerEngine.setCustomDuration(inputHours, inputMinutes, inputSeconds);
+	};
+
+	const handleAdjustTimer = (deltaSec: number) => {
+		timerEngine.adjustTimer(deltaSec);
+	};
+
+	/* -------------------------------------------------------------
+	   2. POMODORO STATE & ENGINE SYNC
+	------------------------------------------------------------- */
+	const handleSwitchPomoPhase = (newPhase: PomoPhase) => {
+		timerEngine.switchPomoPhase(newPhase);
+	};
+
+	const handleAdjustPomoDuration = (type: "focus" | "short" | "long", deltaMin: number) => {
+		timerEngine.adjustPomoDuration(type, deltaMin);
+	};
+
+	const handleDismissPomoFinished = () => {
+		timerEngine.dismissFinished();
+		timerEngine.advancePomoPhase(false);
+	};
+
+	const handlePomoAdvanceAndStart = () => {
+		timerEngine.dismissFinished();
+		timerEngine.advancePomoPhase(true);
+	};
+
+	const handleResetCycle = () => {
+		timerEngine.resetPomoCycle();
+	};
+
+	const handleNextPomoPhase = () => {
+		timerEngine.skipPomoPhase();
+	};
 
 	/* -------------------------------------------------------------
 	   3. ALARMS STATE & ENGINE (CONNECTED TO GLOBAL ALARM ENGINE)
@@ -488,21 +243,21 @@ export function TimersPanel({
 			<div className="timers-nav-tabs">
 				<button
 					className={`timers-tab-btn ${activeTab === "timer" ? "active" : ""}`}
-					onClick={() => setActiveTab("timer")}
+					onClick={() => timerEngine.setActiveTab("timer")}
 				>
 					<Hourglass size={13} />
 					<span>Timer</span>
 				</button>
 				<button
 					className={`timers-tab-btn ${activeTab === "pomodoro" ? "active" : ""}`}
-					onClick={() => setActiveTab("pomodoro")}
+					onClick={() => timerEngine.setActiveTab("pomodoro")}
 				>
 					<Flame size={13} />
 					<span>Pomodoro</span>
 				</button>
 				<button
 					className={`timers-tab-btn ${activeTab === "alarm" ? "active" : ""}`}
-					onClick={() => setActiveTab("alarm")}
+					onClick={() => timerEngine.setActiveTab("alarm")}
 				>
 					<AlarmClock size={13} />
 					<span>Alarms</span>
@@ -680,7 +435,7 @@ export function TimersPanel({
 						</button>
 						<button
 							className={`timer-sound-btn ${soundEnabled ? "on" : "off"}`}
-							onClick={() => setSoundEnabled(!soundEnabled)}
+							onClick={() => timerEngine.toggleSound()}
 							title={soundEnabled ? "Sound enabled" : "Sound muted"}
 						>
 							{soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
@@ -860,9 +615,11 @@ export function TimersPanel({
 						<button
 							className={`timer-play-btn ${isPomoRunning ? "running" : ""}`}
 							onClick={() => {
-								getAudioContext();
-								setIsPomoRunning(!isPomoRunning);
-								setIsPomoFinished(false);
+								if (isPomoRunning) {
+									timerEngine.pausePomo();
+								} else {
+									timerEngine.startPomo();
+								}
 							}}
 						>
 							{isPomoRunning ? (
@@ -887,9 +644,7 @@ export function TimersPanel({
 						<button
 							className="timer-reset-btn"
 							onClick={() => {
-								setIsPomoRunning(false);
-								setIsPomoFinished(false);
-								setPomoSecondsLeft(pomoPhaseDuration);
+								timerEngine.resetPomo();
 							}}
 							title="Reset phase"
 						>
@@ -897,7 +652,7 @@ export function TimersPanel({
 						</button>
 						<button
 							className={`timer-sound-btn ${soundEnabled ? "on" : "off"}`}
-							onClick={() => setSoundEnabled(!soundEnabled)}
+							onClick={() => timerEngine.toggleSound()}
 							title={soundEnabled ? "Sound enabled" : "Sound muted"}
 						>
 							{soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
